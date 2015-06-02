@@ -1,15 +1,17 @@
 #include <phpcpp.h>
 #include <string>
+#include <sstream>
 
 using namespace Php;
 
 Value optimize(Parameters params)
 {
-	std::string res = "called with ";
+	std::ostringstream res;
+	res << "called with ";
 	for (auto m : params)
-		res += m.type() + ",";
+		res << m.type() << ",";
 
-	return res;
+	return res.str();
 }
 
 /**
