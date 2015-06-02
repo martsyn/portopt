@@ -11,6 +11,6 @@ public:
 private:
 
 	bool Bump();
-	auto operator=(const InitialPointProvider&) = delete;
+	void operator=(const InitialPointProvider&) = delete;
 };
 
