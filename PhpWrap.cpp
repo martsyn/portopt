@@ -4,7 +4,7 @@
 
 using namespace Php;
 
-Value optimize(Parameters params)
+Value optimize(Parameters &params)
 {
 	std::ostringstream res;
 	res << "called with ";
@@ -27,9 +27,9 @@ extern "C" {
         
 		extension.add("optimize", optimize, 
 		{
-			Php::ByVal("returns", Type::Array),
-			Php::ByVal("optimization", Type::String),
-			Php::ByVal("benchmarks", Type::Array, false),
+			ByVal("returns", Type::Array),
+			ByVal("optimization", Type::String),
+			ByVal("benchmarks", Type::Array, false),
 		});
 		
         // return the extension
