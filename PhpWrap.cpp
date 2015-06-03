@@ -30,20 +30,22 @@ Value optimizeSimpleTarget(Parameters &params)
 	vector<vector<float>> singleReturns(returns[0].size());
 	for (size_t i = 0; i < singleReturns.size(); ++i)
 	{
-		singleReturns[i] = vector(returns.size());
+		singleReturns[i].resize(returns.size());
 		for (size_t j = 0; j < returns.size(); ++j)
 			singleReturns[i][j] = returns[j][i];
 	}
 
 	function<float(const vector<float>&)> targetFunc;
-	if ((auto targetIt = simpleTargets.find(target)) != simpleTargets.end())
+	auto it = simpleTargets.find(target);
+	if (it != simpleTargets.end())
 	{
-		targetFunc = *targetIt;
+		targetFunc = it->second;
 	}
 	else if (target == "BenchmarkCorrelation")
 	{
-		vector<float> benchmark = (vector<double>) params[3];
-		targetFunc = CorrelationToBenchmark(benchmark);
+		vector<double> benchmark = params[3];
+		vector<float> benchmarkSingle(benchmark.begin(), benchmark.end());
+		targetFunc = CorrelationToBenchmark(benchmarkSingle);
 	}
 	else
 		throw Exception("Unknown target function");
@@ -63,10 +65,11 @@ extern "C" {
         // for the entire duration of the process (that's why it's static)
         static Extension extension("portopt", "1.0");
         
-		extension.add("optimizeSimpleTarget", optimize, 
+		extension.add("optimizeSimpleTarget", optimizeSimpleTarget,
 		{
 			ByVal("returns", Type::Array),
 			ByVal("target", Type::String),
+			ByVal("maximize", Type::Bool),
 			ByVal("benchmarks", Type::Array, false),
 		});
 		
