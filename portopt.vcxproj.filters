@@ -30,6 +30,9 @@
     <ClInclude Include="OptimizationTargets.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Optimize.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -47,7 +50,7 @@
     <ClCompile Include="OptimizationTargets.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="PhpWrap.cpp">
+    <ClCompile Include="Optimize.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

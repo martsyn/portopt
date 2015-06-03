@@ -2,7 +2,7 @@
 
 float ReturnsToStDevRatio(const std::vector<float>& returns);
 float ReturnsToLossStDevRatio(const std::vector<float>& returns);
-float NegatedDrawdown(const std::vector<float>& returns);
+float WorstDrawdown(const std::vector<float>& returns);
 float ReturnToWorstLossRatio(const std::vector<float>& returns);
 float ReturnToDrawdownRatio(const std::vector<float>& returns);
 float ReturnToSlopeStDevRatio(const std::vector<float>& returns);

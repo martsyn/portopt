@@ -43,7 +43,7 @@ float ReturnsToLossStDevRatio(const vector<float>& returns)
 	return sum / sqrt(devSqSum / lossCount);
 }
 
-float NegatedDrawdown(const vector<float>& returns)
+float WorstDrawdown(const vector<float>& returns)
 {
 	auto worst = 0.0f;
 	auto current = 0.0f;
@@ -57,7 +57,7 @@ float NegatedDrawdown(const vector<float>& returns)
 			current = 0.0f;
 	}
 
-	return -worst;
+	return worst;
 }
 
 float ReturnToWorstLossRatio(const vector<float>& returns)
