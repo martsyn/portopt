@@ -74,5 +74,5 @@ void _tmain()
 	//auto returnsFunc = CorrelationToBenchmark(benchmark);
 	auto maximize = true;
 
-	auto weights = optimize(rows, returnsFunc, maximize);
+	auto weights = optimize(rows, returnsFunc, maximize, cout);
 }

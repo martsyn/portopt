@@ -4,7 +4,7 @@
 
 using namespace std;
 
-vector<float> optimize(vector<vector<float>> returns, function<float(const vector<float>&)> returnsFunc, bool maximize)
+vector<float> optimize(vector<vector<float>> returns, function<float(const vector<float>&)> returnsFunc, bool maximize, ostream& log)
 {
 	size_t portCount = returns[0].size();
 	size_t retCount = returns.size();
@@ -37,14 +37,14 @@ vector<float> optimize(vector<vector<float>> returns, function<float(const vecto
 			best = weights;
 			bestRes = res;
 
-//			cout << "found new best " << bestRes << " at ";
-//			for (auto w : best)
-//				cout << w << ' ';
-//			cout << "\n";
+			log << "found new best " << bestRes << " at ";
+			for (auto w : best)
+				log << w << ' ';
+			log << "\n";
 		}
 	}
 
-//	cout << count << " iterations\n";
+	log << count << " iterations\n";
 
 	// optimization
 	const float accuracy = 0.0001f;
@@ -103,7 +103,7 @@ vector<float> optimize(vector<vector<float>> returns, function<float(const vecto
 					nextRes = stepDownRes;
 				}
 
-//				cout << "found improvement step=" << step << " port=" << i << " new best=" << nextRes << "\n";
+				log << "found improvement step=" << step << " port=" << i << " new best=" << nextRes << "\n";
 			}
 		}
 
@@ -113,10 +113,10 @@ vector<float> optimize(vector<vector<float>> returns, function<float(const vecto
 		{
 			best = next;
 			bestRes = nextRes;
-//			cout << "shifted " << step << " new best=" << bestRes << " :: weights: ";
-//			for (auto w : best)
-//				cout << w << ' ';
-//			cout << "\n";
+			log << "shifted " << step << " new best=" << bestRes << " :: weights: ";
+			for (auto w : best)
+				log << w << ' ';
+			log << "\n";
 		}
 		else
 			step *= 0.5f;

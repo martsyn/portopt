@@ -50,7 +50,7 @@ Value optimizeSimpleTarget(Parameters &params)
 	else
 		throw Exception("Unknown target function");
 
-	auto weights = optimize(singleReturns, targetFunc, maximize);
+	auto weights = optimize(singleReturns, targetFunc, maximize, out);
 	return (vector<float>) weights;
 }
 
