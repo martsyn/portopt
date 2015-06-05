@@ -122,5 +122,5 @@ vector<float> optimize(vector<vector<float>> returns, function<float(const vecto
 			step *= 0.5f;
 	}
 
-	return weights;
+	return best;
 }
