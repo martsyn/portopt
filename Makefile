@@ -53,7 +53,7 @@ EXTENSION_DIR		=	$(shell php-config --extension-dir)
 
 EXTENSION 			=	${NAME}.so
 INI 				=	${NAME}.ini
-
+HTMLROOT			=	/var/www/html
 
 #
 #	Compiler
@@ -113,6 +113,7 @@ MKDIR				=	mkdir -p
 HEADERS				=	$(wildcard *.h)
 SOURCES				=	$(wildcard *.cpp)
 OBJECTS				=	$(SOURCES:%.cpp=%.o)
+PHPS				=	$(wildcard *.php)
 
 
 #
@@ -130,6 +131,8 @@ ${OBJECTS}:				${HEADERS} ${SOURCES}
 install:		
 						${CP} ${EXTENSION} ${EXTENSION_DIR}
 						${CP} ${INI} ${INI_DIR}
+						${CP} ${PHPS} ${HTMLROOT}
+						${CP} -r data ${HTMLROOT}
 				
 clean:
 						${RM} ${EXTENSION} ${OBJECTS}
