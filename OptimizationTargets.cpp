@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "VectorMath.h"
+#include "OptimizationTargets.h"
 
 using namespace std;
 
@@ -119,4 +120,82 @@ function<float(const vector<float>&)> CorrelationToBenchmark(const vector<float>
 	{
 		return Correlation(returns, benchmark);
 	};
+}
+
+ReturnStats GetStats(const std::vector<float>& returns, const std::vector<std::vector<float>>& benchmarks)
+{
+	ReturnStats s;
+	
+	struct BenchVars { float mean, dotProd, devSum; };
+	vector<BenchVars> benchVars(benchmarks.size());
+
+	for (size_t j = 0; j < benchmarks.size(); ++j)
+		benchVars[j].mean = Mean(benchmarks[j]);
+
+	auto currentDrawdown = 0.0f;
+
+	// first pass
+	for (auto r : returns)
+	{
+		s.totalReturn += r;
+
+		currentDrawdown += r;
+		if (s.worstDrawdown < currentDrawdown)
+			s.worstDrawdown = currentDrawdown;
+		if (currentDrawdown > 0.0f)
+			currentDrawdown = 0.0f;
+	}
+	auto mean = s.totalReturn / returns.size();
+	auto devSum = 0.0f;
+	auto cum = 0.0f;
+	auto slopeDevSum = 0.0f;
+	auto posDevSum = 0.0f;
+	auto negDevSum = 0.0f;
+	size_t posCount = 0;
+	size_t negCount = 0;
+
+	// second pass
+	for (size_t i = 0; i < returns.size(); ++i)
+	{
+		auto r = returns[i];
+
+		auto dev = r - mean;
+		// deviation
+		devSum += dev*dev;
+
+		// positive and negative semi-deviations
+		if (dev > 0)
+		{
+			posDevSum += dev*dev;
+			++posCount;
+		}
+		else if (dev < 0)
+		{
+			negDevSum += dev*dev;
+			++negCount;
+		}
+
+		// slope deviation (K-ratio)
+		cum += r;
+		auto slopeDev = mean*(i + 1) - cum;
+		slopeDevSum += slopeDev*slopeDev;
+
+		// benchmark correlations
+		for (size_t j = 0; j < benchmarks.size(); ++j)
+		{
+			auto& v = benchVars[j];
+			auto devB = benchmarks[j][i] - v.mean;
+			v.dotProd += dev*devB;
+			v.devSum += devB*devB;
+		}
+	}
+
+	s.deviation = sqrt(devSum) / returns.size();
+	s.positiveDeviation = sqrt(posDevSum) / posCount;
+	s.negativeDeviation = sqrt(negDevSum) / negCount;
+	s.benchmarkCorrelations.resize(benchmarks.size());
+	for (size_t j = 0; j < benchmarks.size(); ++j)
+		s.benchmarkCorrelations[j] = benchVars[j].dotProd / sqrt(devSum*benchVars[j].devSum);
+
+	return s;
 }
