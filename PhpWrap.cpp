@@ -54,6 +54,40 @@ Value optimizeSimpleTarget(Parameters &params)
 	return (vector<float>) weights;
 }
 
+Value optimizeCustomTarget(Parameters &params)
+{
+	vector<vector<double>> returns = params[0];
+	string target = params[1];
+	bool maximize = params[2];
+
+	// transpose and convert to float
+	vector<vector<float>> singleReturns(returns[0].size());
+	for (size_t i = 0; i < singleReturns.size(); ++i)
+	{
+		singleReturns[i].resize(returns.size());
+		for (size_t j = 0; j < returns.size(); ++j)
+			singleReturns[i][j] = returns[j][i];
+	}
+
+	function<float(const vector<float>&)> targetFunc;
+	auto it = simpleTargets.find(target);
+	if (it != simpleTargets.end())
+	{
+		targetFunc = it->second;
+	}
+	else if (target == "BenchmarkCorrelation")
+	{
+		vector<double> benchmark = params[3];
+		vector<float> benchmarkSingle(benchmark.begin(), benchmark.end());
+		targetFunc = CorrelationToBenchmark(benchmarkSingle);
+	}
+	else
+		throw Exception("Unknown target function");
+
+	auto weights = optimize(singleReturns, targetFunc, maximize, out);
+	return (vector<float>) weights;
+}
+
 /**
  *  tell the compiler that the get_module is a pure C function
  */
@@ -70,6 +104,13 @@ extern "C" {
 			ByVal("returns", Type::Array),
 			ByVal("target", Type::String),
 			ByVal("maximize", Type::Bool),
+			ByVal("benchmarks", Type::Array, false),
+		});
+        
+		extension.add("optimizeCustomTarget", optimizeCustomTarget,
+		{
+			ByVal("returns", Type::Array),
+			ByVal("targets", Type::Array),
 			ByVal("benchmarks", Type::Array, false),
 		});
 		

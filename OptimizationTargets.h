@@ -20,3 +20,7 @@ struct ReturnStats
 };
 
 ReturnStats GetStats(const std::vector<float>& returns, const std::vector<std::vector<float>>& benchmarks);
+
+float ScaleStats(const ReturnStats& scales, const ReturnStats& results);
+
+std::function<float(const std::vector<float>&)> CustomRatio(const ReturnStats& scales, const std::vector<std::vector<float>>& benchmarks);
