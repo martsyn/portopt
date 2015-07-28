@@ -118,33 +118,26 @@ usort($connections, "cmpTimestamp");
 
 $chartPoints = array();
 $openConnections = 0;
-$first = true;
+$idx = 0;
+$timeOfDay = 60*60*24 - 1;
 
-foreach ($connections as $c){
-    $id = $c["memberID"];
-    $action = $c["eAction"];
-    $timestamp = $c["dTimestamp"];
+for ($time = $periodStart + $timeOfDay; $time < $periodEnd + $timeOfDay; $time += 60*60*24){
+    while ($idx < count($connections)) {
+        $c = $connections[$idx];
+        $action = $c["eAction"];
+        $timestamp = $c["dTimestamp"];
 
-    $inPeriod = $timestamp >= $periodStart;
+        if ($timestamp > $time)
+            break;
 
-    if ($inPeriod && $first){
-        $chartPoints[] = array("Timestamp" => $periodStart, "Connections" => $openConnections);
-        $first = false;
+        if ($action)
+            ++$openConnections;
+        else
+            --$openConnections;
+        ++$idx;
     }
-
-    if ($action)
-        ++$openConnections;
-    else
-        --$openConnections;
-
-    if ($inPeriod){
-        $chartPoints[] = array(
-            "Timestamp" => $timestamp,
-            "Connections" => $openConnections,
-            "Description" => "Member $id ".($action ? "connected" : "disconnected"));
-    }
+    $chartPoints[] = array("Timestamp" => $time, "Connections" => $openConnections);
 }
-$chartPoints[] = array("Timestamp" => $periodEnd, "Connections" => $openConnections);
 
 echo("<h2>Chart points</h2>\n");
 echo("<table border='1'>\n<tr><th>Timestamp</th><th>Connections</th><th>Description</th></tr>\n");
