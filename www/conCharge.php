@@ -17,7 +17,7 @@ function formatCost($dollars){
     return "$".number_format($dollars, 2);
 }
 
-/** records of member connections ordered by members, then timestamp. If connection is open prior to the period,
+/** records of member connections. If connection is open prior to the period,
  * record must also be included, otherwise always open connection would not have a single record.
 */
 $connections =
