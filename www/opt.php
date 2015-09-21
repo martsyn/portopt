@@ -57,14 +57,16 @@ dumpSlider("drawdown", "Worst drawdown", 0);
     <p><input type="submit" value="Submit"/></p>
 </form>
 <p>
+
+<button onclick="testData()">Test</button>
 <div id="vis"></div>
 <pre>
 	
 <?php
-$data = array();
+$returns = array();
 if ($handle = fopen("data/gallery.tsv", "r")) {
     while ($line = fgetcsv($handle, 0, "\t")) {
-        $data[] = $line;
+        $returns[] = $line;
     }
     fclose($handle);
 } else {
@@ -72,15 +74,15 @@ if ($handle = fopen("data/gallery.tsv", "r")) {
     exit();
 }
 
-$weights = optimizeSimpleTarget($data, "ReturnsToStDevRatio", true);
+$weights = optimizeCustomTarget($returns, $v);
 foreach ($weights as $w)
     echo($w . " ");
 
 $cum = array();
 $sum = 0;
-for ($i = 0; $i < count($data[0]); ++$i) {
-    for ($j = 0; $j < count($data); ++$j)
-        $sum += $data[$j][$i] * $weights[$j];
+for ($i = 0; $i < count($returns[0]); ++$i) {
+    for ($j = 0; $j < count($returns); ++$j)
+        $sum += $returns[$j][$i] * $weights[$j];
     $cum[] = $sum;
 }
 ?>
@@ -107,10 +109,8 @@ for ($i = 0; $i < count($data[0]); ++$i) {
                 "properties": {
                     "enter": {
                         "x": {"scale": "x", "field": "data.x"},
-                        "width": {"scale": "x", "band": true, "offset": -1},
                         "y": {"scale": "y", "field": "data.y"},
-                        "y2": {"scale": "y", "value": 0},
-                        "stroke": {value: "red"}
+                        "stroke": {value: "red"},
                     }
                 }
             }
@@ -129,10 +129,13 @@ for ($i = 0; $i < count($data[0]); ++$i) {
 
 
 <br/>
+
+<?php
+/*
 <table>
 
     <?php
-    foreach ($data as $row) {
+    foreach ($returns as $row) {
         echo "<tr>";
         foreach ($row as $x)
             echo "<td>" . $x . "</td>";
@@ -140,6 +143,8 @@ for ($i = 0; $i < count($data[0]); ++$i) {
     }
     ?>
 </table>
+*/
+?>
 
 </div>
 <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js"></script>
@@ -156,12 +161,14 @@ foreach ($v as $name => $val)
     echo "'$name',\n";
 ?>
 ];
+var vis;
 
 $(document).ready(function() {
+
     vg.parse.spec(spec, function (chart) {
-        chart({el: "#vis", data: data})  //here is where we populate the empty spec data holder with our calculated data
-            .update();
+        vis = chart({el: "#vis", data: data}).update();
     });
+
     sliderIds.forEach(function (id){
         sliders[id] = new Slider("#" + id, {});
         sliders[id].element.name = id;
@@ -184,6 +191,15 @@ function setKRatio() {
     resetSliders();
     sliders.return.setValue(1, true, true);
     sliders.slopeDeviation.setValue(-1, true, true);
+}
+
+function testData() {
+    for (var i = 0; i < data.table.length; ++i)
+        data.table[i].y = data.table[data.table.length - 1 - i].y;
+
+    vg.parse.spec(spec, function (chart) {
+        vis = chart({el: "#vis", data: data}).update();
+    });
 }
 </script>
 </body>
