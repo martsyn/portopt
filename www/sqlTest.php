@@ -45,60 +45,36 @@ function bind_param_array($stmt){
     }
     call_user_func_array(array($stmt, 'bind_param'), $refs);
 }
-
 bind_param_array(
     $returnsStmt,
     'i', $funds,
     's', date("Y-m-d", $minDate),
     's', date("Y-m-d", $maxDate));
-
 $returnsStmt->execute();
+$returnsStmt->bind_result($fundId, $date, $return);
 
-$returnsStmt->bind_result($fundId, $dateStr, $return);
+$monthIndexes = array();
+for ($i = 0, $eom = strtotime(date("Y-m-t", $minDate));
+     $eom < $maxDate;
+     ++$i, $eom = strtotime(date("Y-m-t", $eom + 24 * 60 * 60))) {
+    $monthIndexes[date("Y-m-d", $eom)] = $i;
+}
+$fundIndexes = array();
 
-$prevFundId = -1;
-$rectReturns = array();
-$eom = 0;
-$res = 0.0;
-$i = 0;
-$returns = NULL;
-
+$returns = array();
 while ($returnsStmt->fetch()){
-    $date = strtotime($dateStr);
-
-    if ($i++ < 10)
-        echo "$fundId - $dateStr - $return<br>\n";
-
-    if ($fundId != $prevFundId){
-        if ($returns)
-            while ($eom < $maxDate) {
-                $returns[] = $res;
-                $res = 0.0;
-                $eom = strtotime(date("Y-m-t", $eom + 24 * 60 * 60)); // end of next month
-            }
-
-        $prevFundId = $fundId;
-        $eom = strtotime(date("Y-m-t", $minDate)); // end of month
-        $rectReturns[] = array();
-        $returns = &$rectReturns[count($rectReturns) - 1];
-        $res = 0.0;
+    if (!array_key_exists($fundId, $fundIndexes)) {
+        $fundIdx = count($returns);
+        $returns[] = array_fill(0, count($monthIndexes), 0.0);
+        $fundIndexes[$fundId] = $fundIdx;
     }
-
-    while (true){
-        if ($date <= $eom) {
-            $res += $return;
-            break;
-        }
-        else {
-            $returns[] = $res;
-            $eom = strtotime(date("Y-m-t", $eom + 24 * 60 * 60)); // end of next month
-            $res = 0.0;
-        }
-    }
+    else
+        $fundIdx = $fundIndexes[$fundId];
+    $returns[$fundIdx][$monthIndexes[$date]] = $return;
 }
 
 echo "<table border='1'>\n";
-foreach ($rectReturns as $returns){
+foreach ($returns as $returns){
     echo "<tr>";
     foreach ($returns as $return)
         echo "<td>$return</td>";

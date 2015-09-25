@@ -19,6 +19,12 @@
 <h1>Optimization</h1>
 </div>
 
+    <script>
+        roundingFraction = 1e4; // round to a base-point
+        roundingPercent = roundingFraction*0.01;
+        funds = [50009708,61151353,85784797,68228019,52603728,13848758,18437237,64020156,25959302,1076539,99548767,7269211,49571130,57639905,7729044,61447860,41475626,98755966,55690796,35416912,77025658,86178573,36696020,26636080,67945254,29154909,30219613,93565016,68622463,22726391,80144237];
+    </script>
+
 <?php
 
 $v = array();
@@ -36,6 +42,10 @@ function dumpSlider($name, $label, $default)
 ?>
 
 <form method="post">
+
+<div class="row">
+<div class="col-md-6">
+
 <?php
 
 dumpSlider("return", "Return", 1);
@@ -54,11 +64,31 @@ dumpSlider("drawdown", "Worst drawdown", 0);
         <button type="button" class="btn btn-default" onclick="setKRatio()">K-ratio</button>
     </div>
     <p></p>
-    <p><input type="submit" value="Submit"/></p>
+<!--    <p><input type="submit" value="Submit"/></p> -->
+
+<button type="button" onclick="optimize()">Optimize</button><br/>
+<button type="button" onclick="showReturns()">Recalculate</button><br/>
+
+</div>
+<div class="col-md-6">
+
+<table class="table-striped">
+<thead>
+<tr><th>Fund</th><th>Allocation</th></tr>
+</thead>
+<tbody id="fundTable">
+</tbody>
+</table>
+</div>
+</div>
+
 </form>
 <p>
 
 <button onclick="testData()">Test</button>
+<p>
+
+<button onclick="testApi()">Test api</button>
 <div id="vis"></div>
 <pre>
 	
@@ -110,7 +140,7 @@ for ($i = 0; $i < count($returns[0]); ++$i) {
                     "enter": {
                         "x": {"scale": "x", "field": "data.x"},
                         "y": {"scale": "y", "field": "data.y"},
-                        "stroke": {value: "red"},
+                        "stroke": {value: "red"}
                     }
                 }
             }
@@ -153,6 +183,16 @@ for ($i = 0; $i < count($returns[0]); ++$i) {
 <script type="text/javascript" src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
 <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/bootstrap-slider/4.9.0/bootstrap-slider.min.js"></script>
 <script type='text/javascript'>
+var html = "";
+var runSum = 0.0;
+for (var i = 0; i < funds.length; ++i) {
+    var newSum = Math.round(10000.0/funds.length*(i + 1))*0.01;
+    var part = Math.round((newSum - runSum)*100)*0.01;
+    html += "<tr><td>" + funds[i] + "</td>"
+        + "<td><input type='number' id='weight" + funds[i] + "' min='0' max='100' step='0.01' value='" + part + "' /></td></tr>\n";
+    runSum = newSum;
+}
+$("#fundTable").html(html);
 
 var sliders = {};
 var sliderIds = [
@@ -200,6 +240,89 @@ function testData() {
     vg.parse.spec(spec, function (chart) {
         vis = chart({el: "#vis", data: data}).update();
     });
+}
+
+function testApi() {
+    $.post(
+        "optApi.php",
+        {"funds":funds.join(" ")},
+        function(data){
+            vg.parse.spec(spec, function (chart) {
+                vis = chart({el: "#vis", data: data}).update();
+            });
+        }, "json");
+}
+
+function optimize() {
+    $.post(
+        "api/optimize.php",
+        {"funds":funds.join(" ")},
+        function(data){
+            vg.parse.spec(spec, function (chart) {
+                vis = chart({el: "#vis", data: data}).update();
+            });
+        }, "json");
+}
+
+function round(x) {
+    return Math.round(x*roundingFraction)/roundingFraction;
+}
+
+function roundPercents(x) {
+    return Math.round(x*roundingPercent)/roundingPercent;
+}
+
+function getWeights() {
+    var res = [];
+    for (var i = 0; i < funds.length; ++i){
+        res.push(0.01*parseFloat($("#weight" + funds[i]).val()));
+    }
+    return res;
+}
+
+function setWeights(weights) {
+    for (var i = 0; i < weights.length; ++i){
+        $("#weight" + funds[i]).val(roundPercents(100.0*weights[i]));
+    }
+}
+
+function fixWeights() {
+    var weights = getWeights();
+    var sum = 0.0;
+    for (var i = 0; i < weights.length; ++i){
+        weights[i] = round(weights[i]);
+        sum += weights[i];
+    }
+    if (sum < 1.0 || sum > 1.0) {
+        for (i = weights.length - 1; i >= 0; --i){
+            sum -= round(weights[i]);
+            if (sum <= 1.0) {
+                weights[i] = round(1.0 - sum);
+                break;
+            }
+            weights[i] = 0.0;
+        }
+    }
+    setWeights(weights);
+    return weights;
+}
+
+function showReturns() {
+    var weights = fixWeights();
+    var weightsStr = "";
+    for (var i = 0; i < weights.length; ++i){
+        if (i != 0)
+            weightsStr += " ";
+        weightsStr += funds[i] + ":" + weights[i];
+    }
+    $.post(
+        "api/returns.php",
+        {"weights": weightsStr},
+        function(data){
+            vg.parse.spec(spec, function (chart) {
+                vis = chart({el: "#vis", data: data}).update();
+            });
+        }, "json");
 }
 </script>
 </body>
