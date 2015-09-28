@@ -2,8 +2,8 @@
 
 header('Content-Type:application/json; charset=UTF-8');
 
-$minDate = strtotime(getVar('minDate', '2009-12-01'));
-$maxDate = strtotime(getVar('maxDate', '2015-10-01'));
+$minDate = strtotime(getPostVar('minDate', '2009-12-01'));
+$maxDate = strtotime(getPostVar('maxDate', '2015-10-01'));
 
 function err($msg, $code = 400)
 {
@@ -15,10 +15,17 @@ function err($msg, $code = 400)
  * parse params
  */
 
-function getVar($name, $default)
+function getPostVar($name, $default)
 {
     return array_key_exists($name, $_POST)
         ? $_POST[$name]
+        : $default;
+}
+
+function getGetVar($name, $default)
+{
+    return array_key_exists($name, $_GET)
+        ? $_GET[$name]
         : $default;
 }
 
@@ -86,16 +93,14 @@ ORDER BY iFundID, dReturnDate");
         $monthIndexes[date("Y-m-d", $eom)] = $i;
     }
     $fundIndexes = array();
-
     $returns = array();
+    for ($i = 0; $i < count($funds); ++$i) {
+        $fundIndexes[$funds[$i]] = $i;
+        $returns[] = array_fill(0, count($monthIndexes), 0.0);
+    }
+
     while ($returnsStmt->fetch()) {
-        if (!array_key_exists($fundId, $fundIndexes)) {
-            $fundIdx = count($returns);
-            $returns[] = array_fill(0, count($monthIndexes), 0.0);
-            $fundIndexes[$fundId] = $fundIdx;
-        } else
-            $fundIdx = $fundIndexes[$fundId];
-        $returns[$fundIdx][$monthIndexes[$date]] = $return;
+        $returns[$fundIndexes[$fundId]][$monthIndexes[$date]] = $return;
     }
 
     return $returns;
@@ -116,4 +121,29 @@ function dumpParams(){
         echo "'$k': '$v'";
     }
     echo '}';
+}
+
+/*
+ * stats
+ */
+
+function getStats($monthlyReturns){
+    $sum = array_sum($monthlyReturns);
+    $count = count($monthlyReturns);
+    $mean = $sum/$count;
+
+    $devSqSum = 0.0;
+    foreach ($monthlyReturns as $r){
+        $devSqSum += ($r - $mean)*($r - $mean);
+    }
+
+    $ror = $sum/$count*12;
+    $volatility = sqrt($devSqSum/$count*12);
+    $sharpe = $ror/$volatility;
+
+    return array(
+        "ror" => $ror,
+        "volatility" => $volatility,
+        "sharpe" => $sharpe
+    );
 }

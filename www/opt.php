@@ -22,7 +22,8 @@
     <script>
         roundingFraction = 1e4; // round to a base-point
         roundingPercent = roundingFraction*0.01;
-        funds = [50009708,61151353,85784797,68228019,52603728,13848758,18437237,64020156,25959302,1076539,99548767,7269211,49571130,57639905,7729044,61447860,41475626,98755966,55690796,35416912,77025658,86178573,36696020,26636080,67945254,29154909,30219613,93565016,68622463,22726391,80144237];
+        var funds = [];
+        var stats = {};
     </script>
 
 <?php
@@ -44,7 +45,7 @@ function dumpSlider($name, $label, $default)
 <form method="post">
 
 <div class="row">
-<div class="col-md-6">
+<div class="col-md-4">
 
 <?php
 
@@ -67,17 +68,20 @@ dumpSlider("drawdown", "Worst drawdown", 0);
 <!--    <p><input type="submit" value="Submit"/></p> -->
 
 <button type="button" onclick="optimize()">Optimize</button><br/>
-<button type="button" onclick="showReturns()">Recalculate</button><br/>
+<button type="button" onclick="recalculate()">Recalculate</button><br/>
 
 </div>
-<div class="col-md-6">
+<div class="col-md-8">
 
-<table class="table-striped">
+<table class="table-striped" width="100%">
 <thead>
-<tr><th>Fund</th><th>Allocation</th></tr>
+<tr><th>Fund</th><th>Allocation</th><th>Annualized Return</th><th>Volatility</th><th>Sharpe</th></tr>
 </thead>
 <tbody id="fundTable">
 </tbody>
+<tfoot>
+<tr><th>Summary</th><td>&nbsp;</td><td id="summaryRor">&nbsp;</td><td id="summaryVolatility">&nbsp;</td><td id="summarySharpe">&nbsp;</td></tr>
+</tfoot>
 </table>
 </div>
 </div>
@@ -91,7 +95,7 @@ dumpSlider("drawdown", "Worst drawdown", 0);
 <button onclick="testApi()">Test api</button>
 <div id="vis"></div>
 <pre>
-	
+
 <?php
 $returns = array();
 if ($handle = fopen("data/gallery.tsv", "r")) {
@@ -183,16 +187,6 @@ for ($i = 0; $i < count($returns[0]); ++$i) {
 <script type="text/javascript" src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
 <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/bootstrap-slider/4.9.0/bootstrap-slider.min.js"></script>
 <script type='text/javascript'>
-var html = "";
-var runSum = 0.0;
-for (var i = 0; i < funds.length; ++i) {
-    var newSum = Math.round(10000.0/funds.length*(i + 1))*0.01;
-    var part = Math.round((newSum - runSum)*100)*0.01;
-    html += "<tr><td>" + funds[i] + "</td>"
-        + "<td><input type='number' id='weight" + funds[i] + "' min='0' max='100' step='0.01' value='" + part + "' /></td></tr>\n";
-    runSum = newSum;
-}
-$("#fundTable").html(html);
 
 var sliders = {};
 var sliderIds = [
@@ -205,13 +199,36 @@ var vis;
 
 $(document).ready(function() {
 
-    vg.parse.spec(spec, function (chart) {
-        vis = chart({el: "#vis", data: data}).update();
-    });
-
     sliderIds.forEach(function (id){
         sliders[id] = new Slider("#" + id, {});
         sliders[id].element.name = id;
+    });
+
+    $.get('api/funds.php', function(data){
+        stats = data;
+        for (var fundId in stats)
+            funds.push(fundId);
+
+        var html = "";
+        var runSum = 0.0;
+        var i = 0;
+        for (fundId in stats) {
+            ++i;
+            var stat = stats[fundId];
+            var newSum = round(i/funds.length);
+            var part = round(newSum - runSum);
+            html += "<tr>"
+                + "<td>" + fundId + "</td>"
+                + "<td><input type='number' id='weight" + fundId + "' min='0' max='100' step='0.01' value='" + part*100.0 + "' /></td>"
+                + "<td>" + showPercents(stat.ror) + "</td>"
+                + "<td>" + showPercents(stat.volatility) + "</td>"
+                + "<td>" + showSharpe(stat.sharpe) + "</td>"
+                + "</tr>\n";
+            runSum = newSum;
+        }
+        $("#fundTable").html(html);
+
+        recalculate();
     });
 });
 
@@ -254,13 +271,18 @@ function testApi() {
 }
 
 function optimize() {
+    var params = { "funds":funds.join(" ") };
+
+    sliderIds.forEach(function (id){
+        params[id] = sliders[id].getValue();
+    });
+
     $.post(
         "api/optimize.php",
-        {"funds":funds.join(" ")},
-        function(data){
-            vg.parse.spec(spec, function (chart) {
-                vis = chart({el: "#vis", data: data}).update();
-            });
+        params,
+        function(weights) {
+            setWeights(weights);
+            recalculate();
         }, "json");
 }
 
@@ -270,6 +292,14 @@ function round(x) {
 
 function roundPercents(x) {
     return Math.round(x*roundingPercent)/roundingPercent;
+}
+
+function showPercents(x) {
+    return (x*100.0).toFixed(2);
+}
+
+function showSharpe(x) {
+    return (x).toFixed(2);
 }
 
 function getWeights() {
@@ -307,7 +337,7 @@ function fixWeights() {
     return weights;
 }
 
-function showReturns() {
+function recalculate() {
     var weights = fixWeights();
     var weightsStr = "";
     for (var i = 0; i < weights.length; ++i){
@@ -319,8 +349,15 @@ function showReturns() {
         "api/returns.php",
         {"weights": weightsStr},
         function(data){
+            var stats = data.stats;
+
+            $("#summaryRor").text(showPercents(stats.ror));
+            $("#summaryVolatility").text(showPercents(stats.volatility));
+            $("#summarySharpe").text(showSharpe(stats.sharpe));
+
+            var chartPoints = data.chart;
             vg.parse.spec(spec, function (chart) {
-                vis = chart({el: "#vis", data: data}).update();
+                vis = chart({el: "#vis", data: chartPoints}).update();
             });
         }, "json");
 }
