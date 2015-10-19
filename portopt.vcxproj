@@ -79,6 +79,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="InitialPointProvider.h" />
+    <ClInclude Include="onullstream.h" />
     <ClInclude Include="OptimizationTargets.h" />
     <ClInclude Include="Optimize.h" />
     <ClInclude Include="stdafx.h" />

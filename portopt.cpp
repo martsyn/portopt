@@ -4,6 +4,7 @@
 #include "stdafx.h"
 #include "OptimizationTargets.h"
 #include "Optimize.h"
+#include "onullstream.h"
 
 using namespace std;
 
@@ -78,5 +79,5 @@ void _tmain() {
   // auto returnsFunc = CorrelationToBenchmark(benchmark);
   auto maximize = true;
 
-  auto weights = optimize(rows, returnsFunc, maximize, cout);
+  auto weights = optimize(rows, returnsFunc, maximize, onullstream::instance());
 }

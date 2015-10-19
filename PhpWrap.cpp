@@ -6,6 +6,7 @@
 #include <vector>
 #include "Optimize.h"
 #include "OptimizationTargets.h"
+#include "onullstream.h"
 
 using namespace Php;
 using namespace std;
@@ -54,38 +55,46 @@ Value optimizeSimpleTarget(Parameters &params)
 	return (vector<float>) weights;
 }
 
+map<string, float ReturnStats::*> targetFieldMap = 
+{
+  {"return", &ReturnStats::totalReturn},
+  {"volatility", &ReturnStats::deviation },
+  {"slopeDeviation", &ReturnStats::slopeDeviation },
+  {"posDeviation", &ReturnStats::positiveDeviation },
+  {"negDeviation", &ReturnStats::negativeDeviation },
+  {"drawdown", &ReturnStats::worstDrawdown },
+};
+
 Value optimizeCustomTarget(Parameters &params)
 {
-	vector<vector<double>> returns = params[0];
-	string target = params[1];
-	bool maximize = params[2];
+  vector<vector<double>> returns = params[0];
+  map<string, double> targets = params[1];
 
-	// transpose and convert to float
-	vector<vector<float>> singleReturns(returns[0].size());
-	for (size_t i = 0; i < singleReturns.size(); ++i)
-	{
-		singleReturns[i].resize(returns.size());
-		for (size_t j = 0; j < returns.size(); ++j)
-			singleReturns[i][j] = returns[j][i];
-	}
+  // transpose and convert to float
+  vector<vector<float>> singleReturns(returns[0].size());
+  for (size_t i = 0; i < singleReturns.size(); ++i)
+  {
+    singleReturns[i].resize(returns.size());
+    for (size_t j = 0; j < returns.size(); ++j)
+      singleReturns[i][j] = returns[j][i];
+  }
 
-	function<float(const vector<float>&)> targetFunc;
-	auto it = simpleTargets.find(target);
-	if (it != simpleTargets.end())
-	{
-		targetFunc = it->second;
-	}
-	else if (target == "BenchmarkCorrelation")
-	{
-		vector<double> benchmark = params[3];
-		vector<float> benchmarkSingle(benchmark.begin(), benchmark.end());
-		targetFunc = CorrelationToBenchmark(benchmarkSingle);
-	}
-	else
-		throw Exception("Unknown target function");
+  ReturnStats scales{};
+  for (auto& tp : targets) {
+    auto mpp = targetFieldMap.find(tp.first);
+    if (mpp != targetFieldMap.end())
+    {
+      scales.*(mpp->second) = tp.second;
+//      out << mpp->first << "=" << tp.second << "\n";
+    }
+    else
+      warning << "Unknown target field " << tp.first << "=" << tp.second << flush;
+  }
 
-	auto weights = optimize(singleReturns, targetFunc, maximize, out);
-	return (vector<float>) weights;
+  vector<std::vector<float>> benchmarks{};
+
+  auto weights = optimize(singleReturns, CustomRatio(scales, benchmarks), true, onullstream::instance());
+  return (vector<float>) weights;
 }
 
 /**
