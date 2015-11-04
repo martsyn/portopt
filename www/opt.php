@@ -11,6 +11,23 @@
             height: 300px;
             border: 1px dashed #ccc;
         }
+        input[type="number"] {
+            width:64px;
+        }
+        th.mid,
+        td.mid {
+            text-align: center;
+        }
+        th.right,
+        td.right {
+            text-align: right;
+        }
+        th.optHeader {
+            background: bisque;
+        }
+        th.statsHeader {
+            background: lavender;
+        }
     </style>
 </head>
 <body>
@@ -75,53 +92,26 @@ dumpSlider("drawdown", "Worst drawdown", 0);
 
 <table class="table-striped" width="100%">
 <thead>
-<tr><th>Fund</th><th>Allocation</th><th>Annualized Return</th><th>Volatility</th><th>Sharpe</th></tr>
+<tr><th>&nbsp;</th><th>&nbsp;</th><th class="mid optHeader" colspan="3">Optimization</th><th class="mid statsHeader" colspan="3">Stats</th></tr>
+<tr><th>Fund</th><th class="mid">Allocation</th><th class="mid optHeader">Required</th><th class="mid optHeader">Minimum</th><th class="mid optHeader">Maximum</th>
+    <th class="right statsHeader">Return</th><th class="right statsHeader">Volatility</th><th class="right statsHeader">Sharpe</th></tr>
 </thead>
 <tbody id="fundTable">
 </tbody>
 <tfoot>
-<tr><th>Summary</th><td>&nbsp;</td><td id="summaryRor">&nbsp;</td><td id="summaryVolatility">&nbsp;</td><td id="summarySharpe">&nbsp;</td></tr>
+<tr><th>Summary</th><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+    <td id="summaryRor" class="right">&nbsp;</td><td id="summaryVolatility" class="right">&nbsp;</td><td id="summarySharpe" class="right">&nbsp;</td></tr>
 </tfoot>
 </table>
 </div>
 </div>
 
 </form>
-<p>
 
-<button onclick="testData()">Test</button>
 <p>
-
-<button onclick="testApi()">Test api</button>
 <div id="vis"></div>
-<pre>
-
-<?php
-$returns = array();
-if ($handle = fopen("data/gallery.tsv", "r")) {
-    while ($line = fgetcsv($handle, 0, "\t")) {
-        $returns[] = $line;
-    }
-    fclose($handle);
-} else {
-    echo "File error";
-    exit();
-}
-
-$weights = optimizeCustomTarget($returns, $v);
-foreach ($weights as $w)
-    echo($w . " ");
-
-$cum = array();
-$sum = 0;
-for ($i = 0; $i < count($returns[0]); ++$i) {
-    for ($j = 0; $j < count($returns); ++$j)
-        $sum += $returns[$j][$i] * $weights[$j];
-    $cum[] = $sum;
-}
-?>
-
-	</pre>
+</p>
+</div>
 
 <script>
     var spec = {
@@ -150,37 +140,7 @@ for ($i = 0; $i < count($returns[0]); ++$i) {
             }
         ]
     };
-
-    var data = {
-        "table": [
-            <?php
-            for($i = 0; $i < count($cum); ++$i)
-                echo "{x: ".$i.", y:".$cum[$i]."},"
-            ?>
-        ]
-    };
 </script>
-
-
-<br/>
-
-<?php
-/*
-<table>
-
-    <?php
-    foreach ($returns as $row) {
-        echo "<tr>";
-        foreach ($row as $x)
-            echo "<td>" . $x . "</td>";
-        echo "</tr>\n";
-    }
-    ?>
-</table>
-*/
-?>
-
-</div>
 <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js"></script>
 <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/vega/1.5.0/vega.min.js"></script>
 <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
@@ -219,10 +179,13 @@ $(document).ready(function() {
             var part = round(newSum - runSum);
             html += "<tr>"
                 + "<td>" + fundId + "</td>"
-                + "<td><input type='number' id='weight" + fundId + "' min='0' max='100' step='0.01' value='" + part*100.0 + "' /></td>"
-                + "<td>" + showPercents(stat.ror) + "</td>"
-                + "<td>" + showPercents(stat.volatility) + "</td>"
-                + "<td>" + showSharpe(stat.sharpe) + "</td>"
+                + "<td class='mid'><input type='number' id='weight" + fundId + "' min='0' max='100' step='0.01' value='" + part*100.0 + "' /></td>"
+                + "<td class='mid'><input type='checkbox' id='req" + fundId + "' /></td>"
+                + "<td class='mid'><input type='number' id='min" + fundId + "' min='0' max='100' step='0.01' value='0.00' /></td>"
+                + "<td class='mid'><input type='number' id='max" + fundId + "' min='0' max='100' step='0.01' value='100.00' /></td>"
+                + "<td class='right'>" + showPercents(stat.ror) + "</td>"
+                + "<td class='right'>" + showPercents(stat.volatility) + "</td>"
+                + "<td class='right'>" + showSharpe(stat.sharpe) + "</td>"
                 + "</tr>\n";
             runSum = newSum;
         }
@@ -248,26 +211,6 @@ function setKRatio() {
     resetSliders();
     sliders.return.setValue(1, true, true);
     sliders.slopeDeviation.setValue(-1, true, true);
-}
-
-function testData() {
-    for (var i = 0; i < data.table.length; ++i)
-        data.table[i].y = data.table[data.table.length - 1 - i].y;
-
-    vg.parse.spec(spec, function (chart) {
-        vis = chart({el: "#vis", data: data}).update();
-    });
-}
-
-function testApi() {
-    $.post(
-        "optApi.php",
-        {"funds":funds.join(" ")},
-        function(data){
-            vg.parse.spec(spec, function (chart) {
-                vis = chart({el: "#vis", data: data}).update();
-            });
-        }, "json");
 }
 
 function optimize() {
@@ -311,8 +254,18 @@ function getWeights() {
 }
 
 function setWeights(weights) {
-    for (var i = 0; i < weights.length; ++i){
-        $("#weight" + funds[i]).val(roundPercents(100.0*weights[i]));
+    var sum = 0;
+    for (var i in weights)
+        sum += weights[i];
+    var scale = 1/sum;
+    var runSum = 0;
+    var prevSum = 0;
+    for (i = 0; i < weights.length; ++i){
+        runSum += weights[i]*scale;
+        var runSumRounded = round(runSum);
+        var part = round(runSumRounded - prevSum);
+        prevSum = runSumRounded;
+        $("#weight" + funds[i]).val(roundPercents(100.0*part));
     }
 }
 
