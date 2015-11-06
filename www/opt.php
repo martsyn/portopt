@@ -214,19 +214,38 @@ function setKRatio() {
 }
 
 function optimize() {
-    var params = { "funds":funds.join(" ") };
+    var fundParams = [];
+    funds.forEach(function(id){
+        fundParams.push(
+            {
+                "id": id,
+                "required": $("#req" + id).prop("checked"),
+                "min": $("#min" + id).val()*0.01,
+                "max": $("#max" + id).val()*0.01
+            })});
 
+    var optParams = {};
     sliderIds.forEach(function (id){
-        params[id] = sliders[id].getValue();
+        optParams[id] = sliders[id].getValue();
     });
 
-    $.post(
-        "api/optimize.php",
-        params,
-        function(weights) {
-            setWeights(weights);
+    var data = {
+        funds: fundParams,
+        optType: "custom",
+        optParams: optParams
+    };
+
+    $.ajax({
+        type: "POST",
+        url: "api/optimize.php",
+        data: JSON.stringify(data),
+        contentType: 'application/json; charset=utf-8',
+        dataType: "json",
+        success: function (result) {
+            setWeights(result.weights);
             recalculate();
-        }, "json");
+        }
+    });
 }
 
 function round(x) {
@@ -243,14 +262,6 @@ function showPercents(x) {
 
 function showSharpe(x) {
     return (x).toFixed(2);
-}
-
-function getWeights() {
-    var res = [];
-    for (var i = 0; i < funds.length; ++i){
-        res.push(0.01*parseFloat($("#weight" + funds[i]).val()));
-    }
-    return res;
 }
 
 function setWeights(weights) {
@@ -270,7 +281,10 @@ function setWeights(weights) {
 }
 
 function fixWeights() {
-    var weights = getWeights();
+    var weights = [];
+    for (var i = 0; i < funds.length; ++i){
+        weights.push(0.01*parseFloat($("#weight" + funds[i]).val()));
+    }
     var sum = 0.0;
     for (var i = 0; i < weights.length; ++i){
         weights[i] = round(weights[i]);

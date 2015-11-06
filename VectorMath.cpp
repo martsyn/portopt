@@ -26,18 +26,6 @@ float Mean(const vector<float>& x)
 	return Sum(x) / x.size();
 }
 
-// Scale x so that sum of its components=1. Zero sum remains unscaled
-void Normalize(vector<float>& x)
-{
-	auto sum = Sum(x);
-	if (sum == 0.0f || sum == 1.0f)
-		return;
-	const auto scale = 1.0f / sum;
-	for (auto& f : x)
-		f *= scale;
-}
-
-
 float Correlation(const vector<float>& a, const vector<float>& b)
 {
 	if (a.size() != b.size())

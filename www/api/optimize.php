@@ -2,35 +2,40 @@
 
 include 'common.php';
 
-$fundsStr = getPostVar('funds', '50009708,61151353,85784797,68228019,52603728,13848758,18437237,64020156,25959302,1076539,99548767,7269211,49571130,57639905,7729044,61447860,41475626,98755966,55690796,35416912,77025658,86178573,36696020,26636080,67945254,29154909,30219613,93565016,68622463,22726391,80144237');
-if (!$fundsStr)
-    err('Missing funds');
-$funds = explode(' ', $fundsStr);
-foreach ($funds as $i => $id)
-    if (!ctype_digit(strval(($id))))
-        err('Invalid funds');
+$req = getPostReq();
+
+$funds = array();
+$constraints = array();
+foreach ($req->funds as $fund) {
+    $funds[] = (int) $fund->id;
+    $required = isset($fund->required) ? (bool) $fund->required : false;
+    $min = isset($fund->min) ? (float) $fund->min : 0;
+    $max = isset($fund->max) ? (float) $fund->max : 1;
+    $constraints[] = new OptimizationConstraint($required, $min, $max);
+}
+
 if (count($funds) < 1 || count($funds) > 50)
     err('Invalid number of funds');
 
-$v = array();
-function readOptVar($name)
-{
-    global $v;
-    $v[$name] = getPostVar($name, 0.0);
-}
-readOptVar('return');
-readOptVar('volatility');
-readOptVar('slopeDeviation');
-readOptVar('posDeviation');
-readOptVar('negDeviation');
-readOptVar('drawdown');
+$optType = $req->optType;
+if ($optType != 'custom')
+    err("Unknown optType $optType");
 
+$optParams = get_object_vars($req->optParams);
 $returns = loadReturns($funds, $minDate, $maxDate);
 
-/*
- * optimization
- */
+//
+// optimization
+//
 
-$weights = optimizeCustomTarget($returns, $v);
+$optParams = array(
+    'return' => 1,
+    'volatility' => -1
+);
 
-echo json_encode($weights);
+$weights = optimizeCustomTarget($constraints, $returns, $optParams);
+
+$result = new stdClass;
+$result->weights = $weights;
+
+echo json_encode($result);

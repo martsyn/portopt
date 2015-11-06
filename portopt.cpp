@@ -5,6 +5,7 @@
 #include "OptimizationTargets.h"
 #include "Optimize.h"
 #include "onullstream.h"
+#include "Constraint.h"
 
 using namespace std;
 
@@ -63,7 +64,7 @@ void _tmain() {
     cerr << "mismatching counts\n";
     exit(1);
   }
-
+  /*
   auto returnsFunc = CustomRatio(
       {
           1.0f,   // totalReturn;
@@ -75,9 +76,29 @@ void _tmain() {
           {-1.0f}, // benchmarkCorrelations
       },
       {benchmark});
-  // auto returnsFunc = ReturnsToStDevRatio;
+      */
+  auto returnsFunc = ReturnsToStDevRatio;
   // auto returnsFunc = CorrelationToBenchmark(benchmark);
   auto maximize = true;
 
-  auto weights = optimize(rows, returnsFunc, maximize, onullstream::instance());
+  vector<Constraint> constraints = {
+    Constraint(false, 0.1f, 0.8f),
+    Constraint(false, 0.0f, 1.0f),
+    Constraint(true,  0.1f, 0.11f),
+    Constraint(true,  0.2f, 0.2f),
+    Constraint(false, 0.2f, 0.2f),
+  };
+
+  constraints.reserve(portCount);
+
+  for (auto i = constraints.size(); i < portCount; ++i)
+    constraints.push_back(Constraint(false, 0, 1));
+
+  auto weights = optimize(constraints, rows, returnsFunc, maximize, /*cout*/ onullstream::instance());
+
+  auto res = returnsFunc(weights);
+  cout << "result: " << res << "\nweights: ";
+  for (auto w : weights)
+    cout << w << ' ';
+  cout << endl;
 }

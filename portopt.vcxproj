@@ -78,6 +78,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Constraint.h" />
     <ClInclude Include="InitialPointProvider.h" />
     <ClInclude Include="onullstream.h" />
     <ClInclude Include="OptimizationTargets.h" />

@@ -131,8 +131,8 @@ ${OBJECTS}:				${HEADERS} ${SOURCES}
 install:		
 						${CP} ${EXTENSION} ${EXTENSION_DIR}
 						${CP} ${INI} ${INI_DIR}
-						${CP} ${PHPS} ${HTMLROOT}
-						${CP} -r data ${HTMLROOT}
+#						${CP} ${PHPS} ${HTMLROOT}
+#						${CP} -r www/data ${HTMLROOT}
 				
 clean:
 						${RM} ${EXTENSION} ${OBJECTS}

@@ -11,9 +11,9 @@ function err($msg, $code = 400)
     die($msg);
 }
 
-/*
- * parse params
- */
+//
+// parse params
+//
 
 function getPostVar($name, $default)
 {
@@ -27,6 +27,14 @@ function getGetVar($name, $default)
     return array_key_exists($name, $_GET)
         ? $_GET[$name]
         : $default;
+}
+
+function getPostReq()
+{
+    $req = json_decode(file_get_contents("php://input"));
+    if (!$req)
+        err("Invalid JSON request");
+    return $req;
 }
 
 /*
