@@ -24,15 +24,6 @@ if ($optType != 'custom')
 $optParams = get_object_vars($req->optParams);
 $returns = loadReturns($funds, $minDate, $maxDate);
 
-//
-// optimization
-//
-
-$optParams = array(
-    'return' => 1,
-    'volatility' => -1
-);
-
 $weights = optimizeCustomTarget($constraints, $returns, $optParams);
 
 $result = new stdClass;
