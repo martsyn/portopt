@@ -1,0 +1,53 @@
+<?php
+
+$userId = $_GET['userId'];
+$code = $_GET['code'];
+echo "code=$code, userId=$userId";
+
+// token request
+
+$ch = curl_init();
+$fields='grant_type=authorization_code&client_id=755469067161&client_secret=b7cf12433cb3939b40fbf2edf45f341c&code='.$code;
+curl_setopt($ch, CURLOPT_URL, 'https://login.mailchimp.com/oauth2/token');
+curl_setopt($ch, CURLOPT_POST, 1);
+
+$fields=array(
+	'grant_type'=>'authorization_code',
+	'client_id'=>'755469067161',
+	'client_secret'=>'b7cf12433cb3939b40fbf2edf45f341c',
+	'code'=>$code);
+
+$post = http_build_query($fields, NULL, '&');
+	
+curl_setopt($ch, CURLOPT_POSTFIELDS, $post);
+curl_setopt($ch,CURLOPT_ENCODING , "gzip");
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_HEADER, true);
+
+$tokenResponse = curl_exec($ch);
+
+echo "\n<h3>token response</h3>\n<pre>$tokenResponse</pre>\n";
+
+$token = json_decode($tokenResponse)->access_token;
+
+if (!$token)
+	die("failed to get token");
+
+echo "token=$token";
+
+// metadata request
+$ch = curl_init();
+
+curl_setopt($ch, CURLOPT_URL, 'https://login.mailchimp.com/oauth2/metadata');
+$headers = array(
+	'Authorization' => "OAuth $token",
+	'Accept' => 'application/json');
+curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+
+$metadataResponse = curl_exec($ch);
+
+$metadata = json_decode($metadataResponse);
+
+var_dump($metadata);
+
+echo 'Great success!';

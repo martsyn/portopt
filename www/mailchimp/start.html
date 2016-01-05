@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mailchimp integration</title>
+	<style>
+	#mailchimpFrame, .mailchimpFrame{
+		position:absolute;
+		top: 50%;
+		left:50%;
+		margin-right: -50%;
+		transform: translate(-50%, -50%);
+		width:400px;
+		height:600px;
+		border: 1px solid #ccc;
+	}
+	</style>
+</head>
+<body>
+	<input type="number" id="userId" value="1"></input><br/>
+	<button type="button" onclick="startMailchimp()">Link my Mailchimp account</button>
+
+	<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+	<script>
+		function startMailchimp(){
+			var userId = $('#userId').val();
+			var url = "https://login.mailchimp.com/oauth2/authorize?response_type=code&client_id=755469067161&redirect_uri=https%3A%2F%2Fapi.hfinone.com%2Fmailchimp%2Fcomplete.php%3FuserId%3D" + userId;
+			$('<iframe id="mailchimpFrame" src="' + url + '" />')
+				.appendTo('body');
+		}
+	</script>
+</body>
+<html>
