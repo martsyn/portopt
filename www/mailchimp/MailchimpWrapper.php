@@ -1,5 +1,6 @@
 <?php
 
+require_once('MailchimpMember.php');
 require_once('miniMCAPI.class.php');
 
 class MailchimpWrapper
@@ -55,8 +56,24 @@ class MailchimpWrapper
         return json_decode($response);
     }
 
+    private function get($resource, $params = NULL, $log = false){
+        return $this->request('GET', $resource, $params, NULL, $log);
+    }
+
+    private function post($resource, $params = NULL, $data = NULL, $log = false){
+        return $this->request('POST', $resource, $params, $data, $log);
+    }
+
+    private function patch($resource, $params = NULL, $data = NULL, $log = false){
+        return $this->request('PATCH', $resource, $params, $data, $log);
+    }
+
+    private function delete($resource, $log = false){
+        return $this->request('DELETE', $resource, NULL, NULL, $log);
+    }
+
     public function checkHfinGroups($mcListId){
-        $cats = $this->request('GET', "lists/$mcListId/interest-categories", ['fields' => 'categories.id,categories.title']);
+        $cats = $this->get("lists/$mcListId/interest-categories", ['fields' => 'categories.id,categories.title']);
         $catId = NULL;
         foreach ($cats->categories as $cat) {
             if ($cat->title == 'HFIN One') {
@@ -69,7 +86,7 @@ class MailchimpWrapper
         $followerId = NULL;
 
         if ($catId) {
-            $interests = $this->request('GET', "/lists/$mcListId/interest-categories/$catId/interests", ['fields' => 'interests.id,interests.name'])
+            $interests = $this->get("lists/$mcListId/interest-categories/$catId/interests", ['fields' => 'interests.id,interests.name'])
                 ->interests;
 
             foreach ($interests as $interest) {
@@ -80,43 +97,40 @@ class MailchimpWrapper
             }
 
             if (!$connectionId || !$followerId) {
-                $this->request('DELETE', "/lists/$mcListId/interest-categories/$catId");
+                $this->delete("lists/$mcListId/interest-categories/$catId");
                 $catId = NULL;
             }
         }
 
         if (!$catId){
-            $catId = $this->request('POST', "lists/$mcListId/interest-categories", ['fields' => 'id'],
+            $catId = $this->post("lists/$mcListId/interest-categories", ['fields' => 'id'],
                 [
                     'title' => 'HFIN One',
                     'type' =>'checkboxes'
                 ])->id;
-            $connectionId = $this->request('POST', "/lists/$mcListId/interest-categories/$catId/interests", ['fields' => 'id'],
+            $connectionId = $this->post("lists/$mcListId/interest-categories/$catId/interests", ['fields' => 'id'],
                 [
                     'name' => 'Connection'
                 ])->id;
-            $followerId = $this->request('POST', "/lists/$mcListId/interest-categories/$catId/interests", ['fields' => 'id'],
+            $followerId = $this->post("lists/$mcListId/interest-categories/$catId/interests", ['fields' => 'id'],
                 [
                     'name' => 'Follower'
                 ])->id;
         }
 
-        return (object) ['Connection' => $connectionId, 'Follower' => $followerId];
+        return (object) ['connection' => $connectionId, 'follower' => $followerId];
     }
 
-    public function getMembers($mcListId, $mcGroupIds) {
-        $members = $this->request('GET', "/lists/$mcListId/members", ['fields' => 'members.id,members.email_address,members.status,members.last_changed,members.interests'])
+    public function getListMembers($mcListId, $mcGroupIds) {
+        $members = $this->get("lists/$mcListId/members",
+            ['fields' => 'members.id,members.email_address,members.status,members.last_changed,members.interests'])
             ->members;
 
         $result = [];
 
         foreach ($members as $member){
-            $val = (object) [
-                'Id' => $member->id,
-                'Email' => $member->email_address,
-                'Subscribed' => $member->status == 'subscribed',
-                'ModifiedDate' => $member->last_changed,
-            ];
+            $val = new MailchimpMember(
+                $member->id, $member->email_address, $member->last_changed, $member->status == 'subscribed', false, false);
             foreach ($mcGroupIds as $name => $id){
                 $val->$name = isset($member->interests->$id) && $member->interests->$id;
             }
@@ -124,5 +138,38 @@ class MailchimpWrapper
             $result[strtolower($member->email_address)] = $val;
         }
         return$result;
+    }
+
+    public function addMembers($listId, $newMembers, $mcGroupIds)
+    {
+        foreach ($newMembers as $member){
+            $rest = [
+                'email_address' => $member->email,
+                'status' => $member->subscribed ? 'subscribed' : 'unsubscribed',
+            ];
+
+            $interests = [];
+            foreach ($mcGroupIds as $name => $id)
+                if ($member->$name)
+                    $interests[$id] = true;
+            if (count($interests) > 0)
+                $rest['interests'] = $interests;
+
+            $this->post("lists/$listId/members", NULL, $rest);
+        }
+    }
+
+    public function changeSubscriptions($mcListId, $subChanges)
+    {
+        foreach ($subChanges as $id => $isSubscribed){
+            $this->patch("lists/$mcListId/members/$id", NULL, ['status' => $isSubscribed ? 'subscribed' : 'unsubscribed']);
+        }
+    }
+
+    public function changeGroups($mcListId, $groupChanges)
+    {
+        foreach ($groupChanges as $id => $group){
+            $this->patch("lists/$mcListId/members/$id", NULL, ['interests' => [$group->group => $group->value]]);
+        }
     }
 }

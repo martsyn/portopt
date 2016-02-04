@@ -1,7 +1,8 @@
 <?php
-$webService = true;
 
 require_once(__DIR__.'/../api/common.php');
+
+addJsonHeader();
 
 $userId = $_GET['userId'];
 $listId = $_GET['listId'];

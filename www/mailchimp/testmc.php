@@ -1,6 +1,6 @@
 <?php
 
-require_once('db.php');
+require_once('MailchimpDao.php');
 require_once('MailchimpWrapper.php');
 
 addJsonHeader();
@@ -9,27 +9,70 @@ $userId = 1;
 $dbListId = 1;
 $mcListId = '1a68380cc0';
 
-$dbMembers = getListEmails($dbListId);
+$db = new MailchimpDao();
+$mc = new MailchimpWrapper($db->getApiKey($userId));
 
-$mc = new MailchimpWrapper(getApiKey($userId));
+$dbMembers = $db->getListMembers($dbListId);
+
 $mcGroupIds = $mc->checkHfinGroups($mcListId);
-$mcMembers = $mc->getMembers($mcListId, $mcGroupIds);
+$mcMembers = $mc->getListMembers($mcListId, $mcGroupIds);
 
-$dbUpdates = [];
-$dbInserts = [];
+// update DB
+
+$updates = [];
+$inserts = [];
 
 foreach ($mcMembers as $email => $mcMember) {
     if (array_key_exists($email, $dbMembers)){
         $dbMember = $dbMembers[$email];
-        if ($dbMember->Subscribed != $mcMember->Subscribed)
-            $dbUpdates[$dbMember->Email] = $mcMember->Subscribed;
+        if ($dbMember->subscribed != $mcMember->subscribed
+            && $dbMember->modifiedDate <= $mcMember->modifiedDate)
+            $updates[] = $mcMember;
     }
     else{
-        if ($mcMember->Subscribed)
-            $dbInserts[$mcMember->Email] = $mcMember->Subscribed;
+        if ($mcMember->subscribed)
+            $inserts[] = $mcMember;
     }
 }
 
-insertEmails($dbListId, $dbInserts);
-updateEmails($dbListId, $dbUpdates);
+$db->insertEmails($dbListId, $inserts);
+$db->updateEmails($dbListId, $updates);
 
+$newEmails = [];
+foreach ($inserts as $mcMember) {
+    $newEmails[] = $mcMember->email;
+}
+
+$dbMembers = array_merge($dbMembers, $db->getMembersFromEmails($dbListId, $newEmails));
+
+// update MC
+
+$newMembers = [];
+$subChanges = [];
+$groupChanges = [];
+
+foreach ($dbMembers as $email => $dbMember){
+    if (array_key_exists($email, $mcMembers)) {
+        $mcMember = $mcMembers[$email];
+
+        if ($mcMember->subscribed != $dbMember->subscribed
+            && $mcMember->modifiedDate < $dbMember->modifiedDate)
+            $subChanges[$mcMember->id] = $dbMember->subscribed;
+
+        if ($mcMember->connection != $dbMember->connection)
+            $groupChanges[$mcMember->id] = (object) ['group' => $mcGroupIds->connection, 'value' => $dbMember->connection];
+
+        if ($mcMember->follower != $dbMember->follower)
+            $groupChanges[$mcMember->id] = (object) ['group' => $mcGroupIds->follower, 'value' => $dbMember->connection];
+    }
+    else{
+        if ($dbMember->subscribed)
+            $newMembers[] = $dbMember;
+    }
+}
+
+$mc->addMembers($mcListId, $newMembers, $mcGroupIds);
+$mc->changeSubscriptions($mcListId, $subChanges);
+$mc->changeGroups($mcListId, $groupChanges);
+
+echo "\nGreat Success\n";

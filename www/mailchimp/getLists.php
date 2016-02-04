@@ -1,8 +1,8 @@
 <?php
-$webService = true;
 
 require_once(__DIR__.'/../api/common.php');
-require_once('miniMCAPI.class.php');
+
+addJsonHeader();
 
 $userId = $_GET['userId'];
 
