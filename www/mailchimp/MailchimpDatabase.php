@@ -3,7 +3,7 @@
 require_once('MailchimpMember.php');
 require_once(__DIR__.'/../api/common.php');
 
-class MailchimpDao
+class MailchimpDatabase
 {
     function getApiKey($userId)
     {
@@ -15,7 +15,7 @@ class MailchimpDao
             err('Failed to retrieve save access token');
         $stmt->bind_result($apiKey);
         if (!$stmt->fetch())
-            err('User missing mailchimp access token');
+            return false;
         return $apiKey;
     }
 
@@ -72,5 +72,34 @@ class MailchimpDao
         }
 
         return $result;
+    }
+
+    public function saveKey($userId, $apiKey)
+    {
+        $db = dbConnect();
+        $returnsStmt = $db->prepare("insert Mailchimp (UserId, AccessToken) values (?,?) on duplicate key update AccessToken=?");
+        bind_param_array(
+            $returnsStmt,
+            'i', $userId,
+            's', $apiKey,
+            's', $apiKey);
+        return $returnsStmt->execute();
+    }
+
+    public function removeKey($userId)
+    {
+        $db = dbConnect();
+        $returnsStmt = $db->prepare("delete from Mailchimp where UserId=?");
+        if ($db->error)
+            error_log("Failed to delete: ".$db->error);
+        bind_param_array($returnsStmt, 'i', $userId);
+        return $returnsStmt->execute();
+    }
+
+    public function getCloudLists()
+    {
+        return [
+            ['id' => 1, 'title' => 'Silly list', 'count' => 999]
+        ];
     }
 }

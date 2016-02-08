@@ -1,6 +1,6 @@
 <?php
 
-require_once('MailchimpDao.php');
+require_once('MailchimpDatabase.php');
 require_once('MailchimpWrapper.php');
 
 addJsonHeader();
@@ -9,7 +9,7 @@ $userId = 1;
 $dbListId = 1;
 $mcListId = '1a68380cc0';
 
-$db = new MailchimpDao();
+$db = new MailchimpDatabase();
 $mc = new MailchimpWrapper($db->getApiKey($userId));
 
 $dbMembers = $db->getListMembers($dbListId);

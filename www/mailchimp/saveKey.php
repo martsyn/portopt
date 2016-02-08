@@ -1,29 +1,31 @@
 <?php
 
 require_once(__DIR__.'/../api/common.php');
+require_once('MailchimpDatabase.php');
 
 addJsonHeader();
 
-$userId = $_GET['userId'];
-$apiKey = $_GET['apiKey'];
+$userId = getGetVar('userId');
+$apiKey = getGetVar('apiKey');
 
 if (!is_numeric($userId))
 	die('bad userId');
 
-$db = dbConnect();
-if ($db->connect_error)
-	err("Connection failed: " . $db->connect_error, 500);
+if ($apiKey) {
 
-$returnsStmt = $db->prepare("insert Mailchimp (UserId, AccessToken) values (?,?) on duplicate key update AccessToken=?");
+    if (!strpos($apiKey, '-')) {
+        $meta = httpRequest('GET', 'https://login.mailchimp.com/oauth2/metadata', NULL, ["Authorization: OAuth $apiKey"]);
+        if (!$meta || !$meta->dc)
+            err('Invalid metadata response');
+        $apiKey .= '-' . $meta->dc;
+    }
 
-bind_param_array(
-	$returnsStmt,
-	'i', $userId,
-	's', $apiKey,
-	's', $apiKey);
-$success = $returnsStmt->execute();
+    $db = new MailchimpDatabase();
+    $db->saveKey($userId, $apiKey);
+}
+else{
+    $db = new MailchimpDatabase();
+    $db->removeKey($userId);
+}
 
-$result = new stdClass();
-$result->success = $success;
-
-echo json_encode($result);
+echo json_encode(['success' => true]);

@@ -1,7 +1,6 @@
 <?php
 
 require_once('MailchimpMember.php');
-require_once('miniMCAPI.class.php');
 
 class MailchimpWrapper
 {
@@ -171,5 +170,25 @@ class MailchimpWrapper
         foreach ($groupChanges as $id => $group){
             $this->patch("lists/$mcListId/members/$id", NULL, ['interests' => [$group->group => $group->value]]);
         }
+    }
+
+    public function getLists()
+    {
+        $lists = $this->get('lists', ['fields' => 'lists.id,lists.name,lists.stats.member_count'])
+            ->lists;
+        $result = [];
+        foreach($lists as $list)
+            $result[] = (object)[
+                'id' => $list->id,
+                'title' => $list->name,
+                'count' => $list->stats->member_count,
+            ];
+        return $result;
+    }
+
+    public function getAccountDetails()
+    {
+        $result = $this->get('', ['fields' => 'account_name']);
+        return $result->account_name;
     }
 }
