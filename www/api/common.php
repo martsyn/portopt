@@ -1,9 +1,14 @@
 <?php
 
-header('Content-Type:application/json; charset=UTF-8');
+function addJsonHeader()
+{
+    header('Content-Type:application/json');
+}
 
+/*
 $minDate = strtotime(getPostVar('minDate', '2009-12-01'));
 $maxDate = strtotime(getPostVar('maxDate', '2015-10-01'));
+*/
 
 function err($msg, $code = 400)
 {
@@ -15,14 +20,14 @@ function err($msg, $code = 400)
 // parse params
 //
 
-function getPostVar($name, $default)
+function getPostVar($name, $default = NULL)
 {
     return array_key_exists($name, $_POST)
         ? $_POST[$name]
         : $default;
 }
 
-function getGetVar($name, $default)
+function getGetVar($name, $default = NULL)
 {
     return array_key_exists($name, $_GET)
         ? $_GET[$name]
@@ -69,15 +74,22 @@ function bind_param_array($stmt){
     call_user_func_array(array($stmt, 'bind_param'), $refs);
 }
 
+function dbConnect()
+{
+    //$db = new mysqli('localhost', 'avm', 'uZlyr8RoOiURQKSLdLoO', 'hfinone');
+    $db = new mysqli('localhost', 'root', 'n3W*s3rv3r2015!', 'hfin');
+    if ($db->connect_error)
+        err("Connection failed: " . $db->connect_error, 500);
+
+    return $db;
+}
+
 /*
  * load returns
  */
 function loadReturns($funds, $minDate, $maxDate)
 {
-    /** @noinspection SpellCheckingInspection */
-    $db = new mysqli('localhost', 'avm', 'uZlyr8RoOiURQKSLdLoO', 'hfinone');
-    if ($db->connect_error)
-        err("Connection failed: " . $db->connect_error, 500);
+    $db = dbConnect();
 
     $returnsStmt = $db->prepare("SELECT iFundID, dReturnDate, iReturn FROM hfin_investment_fund_returns
 WHERE iFundID IN (" . implode(',', array_fill(0, count($funds), '?')) . ")
@@ -154,4 +166,71 @@ function getStats($monthlyReturns){
         "volatility" => $volatility,
         "sharpe" => $sharpe
     );
+}
+
+function linReg($xs, $ys)
+{
+    $xSum = 0;
+    $ySum = 0;
+    $xxSum = 0;
+    $xySum = 0;
+
+    $c = count($xs);
+
+    for ($i = 0; $i < $c; ++$i)
+    {
+        $x = $xs[$i];
+        $y = $ys[$i];
+
+        $xSum += $x;
+        $ySum += $y;
+        $xxSum += $x*$x;
+        $xySum += $x*$y;
+    }
+
+    $result = new stdClass();
+    $result->slope = ($c*$xySum - $xSum*$ySum)/($c*$xxSum - $xSum*$xSum);
+    $result->intercept = ($ySum - $result->slope*$xSum)/$c;
+
+    return $result;
+}
+
+function httpRequest($verb, $url, $urlParams = NULL, $headers = NULL, $data = NULL, $log = false)
+{
+    $fullUrl = $url;
+    if ($urlParams)
+        $fullUrl .= '?'.http_build_query($urlParams);
+    $curl = curl_init();
+
+    $curl_log = 0;
+    if ($log) {
+        $curl_log = fopen("/home/apache/curl.log", 'a');
+        curl_setopt($curl, CURLOPT_VERBOSE, true);
+        curl_setopt($curl, CURLOPT_STDERR, $curl_log);
+    }
+
+    curl_setopt($curl, CURLOPT_URL, $fullUrl);
+    curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($curl, CURLOPT_CUSTOMREQUEST, $verb);
+    curl_setopt($curl, CURLOPT_ENCODING, ''); // decode automatically if zipped
+
+    if ($data)
+        curl_setopt($curl, CURLOPT_POSTFIELDS, is_string($data) ? $data : json_encode($data));
+    if ($headers)
+        curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
+    $response = curl_exec($curl);
+    if ($log)
+        fclose($curl_log);
+    if (curl_errno($curl))
+    {
+        error_log("'$verb' request to $url failed with CURL error: ".curl_error($curl));
+        return NULL;
+    }
+    $status = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+    curl_close($curl);
+    if ($status >= 300) {
+        error_log("'$verb' request to $url failed with status $status and message $response");
+        return NULL;
+    }
+    return json_decode($response);
 }
