@@ -72,10 +72,14 @@ class MailchimpWrapper
     }
 
     public function checkHfinGroups($mcListId){
+        $categoryTitle = 'Cloud Docs';
+        $connectionGroupTitle = 'Connection';
+        $followerGroupTitle = 'Follower';
+
         $cats = $this->get("lists/$mcListId/interest-categories", ['fields' => 'categories.id,categories.title']);
         $catId = NULL;
         foreach ($cats->categories as $cat) {
-            if ($cat->title == 'HFIN One') {
+            if ($cat->title == $categoryTitle) {
                 $catId = $cat->id;
                 break;
             }
@@ -89,9 +93,9 @@ class MailchimpWrapper
                 ->interests;
 
             foreach ($interests as $interest) {
-                if ($interest->name == 'Connection')
+                if ($interest->name == $connectionGroupTitle)
                     $connectionId = $interest->id;
-                elseif ($interest->name == 'Follower')
+                elseif ($interest->name == $followerGroupTitle)
                     $followerId = $interest->id;
             }
 
@@ -104,16 +108,16 @@ class MailchimpWrapper
         if (!$catId){
             $catId = $this->post("lists/$mcListId/interest-categories", ['fields' => 'id'],
                 [
-                    'title' => 'HFIN One',
+                    'title' => $categoryTitle,
                     'type' =>'checkboxes'
                 ])->id;
             $connectionId = $this->post("lists/$mcListId/interest-categories/$catId/interests", ['fields' => 'id'],
                 [
-                    'name' => 'Connection'
+                    'name' => $connectionGroupTitle
                 ])->id;
             $followerId = $this->post("lists/$mcListId/interest-categories/$catId/interests", ['fields' => 'id'],
                 [
-                    'name' => 'Follower'
+                    'name' => $followerGroupTitle
                 ])->id;
         }
 
