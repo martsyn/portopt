@@ -2,6 +2,8 @@
 
 include 'common.php';
 
+addJsonHeader();
+
 $allocStr = getPostVar('weights', NULL);
 if (!$allocStr)
     err('Missing allocations');

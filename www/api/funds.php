@@ -2,6 +2,8 @@
 
 include 'common.php';
 
+addJsonHeader();
+
 $portfolio = getGetVar('portfolio', 111);
 
 if ($portfolio != 111){
