@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="dataSourceStorage">
+  <data-source name="MySQL - hfinone@localhost" uuid="c07a9872-8060-4c1b-b7d3-ddc885aa4757">
+    <database-info product="MySQL" version="5.5.44-MariaDB" jdbc-version="4.0" driver-name="MySQL Connector Java" driver-version="mysql-connector-java-5.1.35 ( Revision: 5fb9c5849535c13917c2cf9baaece6ef9693ef27 )">
+      <extra-name-characters>#@</extra-name-characters>
+      <identifier-quote-string>`</identifier-quote-string>
+    </database-info>
+    <case-sensitivity plain-identifiers="exact" quoted-identifiers="exact"/>
+    <schema name="" catalog="hfinone"/>
+    <table name="Performance" schema="" catalog="hfinone" type="TABLE">
+      <column name="FundId" sqlType="INT" precision="10" scale="0" nullable="false" jdbcType="4"/>
+      <column name="Type" sqlType="INT" precision="10" scale="0" nullable="false" jdbcType="4"/>
+      <column name="Date" sqlType="DATE" precision="10" scale="0" nullable="false" jdbcType="91"/>
+      <column name="Value" sqlType="DOUBLE" precision="22" scale="0" nullable="false" jdbcType="8"/>
+      <primary-key name="PRIMARY" columns="FundId,Type,Date"/>
+      <foreign-key name="Funds" columns="FundId" ref-table="Funds" ref-schema="" ref-catalog="hfinone" ref-columns="Id" update-rule="0" delete-rule="0" deferrability="2"/>
+      <foreign-key name="Types" columns="Type" ref-table="PerformanceReportTypes" ref-schema="" ref-catalog="hfinone" ref-columns="Id" update-rule="0" delete-rule="3" deferrability="2"/>
+      <index name="Types_idx" unique="false" columns="Type"/>
+    </table>
+    <table name="hfin_investment_fund_returns" schema="" catalog="hfinone" type="TABLE">
+      <column name="iFundID" sqlType="INT" precision="10" scale="0" nullable="false" jdbcType="4"/>
+      <column name="iReturn" sqlType="DECIMAL" precision="6" scale="5" nullable="true" jdbcType="3"/>
+      <column name="eStatus" sqlType="ENUM" precision="2" scale="0" nullable="true" jdbcType="1" def="J0Un"/>
+      <column name="dReturnDate" sqlType="DATE" precision="10" scale="0" nullable="true" jdbcType="91"/>
+      <column name="dModifiedDate" sqlType="TIMESTAMP" precision="19" scale="0" nullable="false" jdbcType="93" def="Q1VSUkVOVF9USU1FU1RBTVA="/>
+      <column name="eReturnSource" sqlType="ENUM" precision="10" scale="0" nullable="true" jdbcType="1"/>
+      <column name="iMemberId" sqlType="INT" precision="10" scale="0" nullable="true" jdbcType="4"/>
+      <column name="iRecordID" sqlType="INT" precision="10" scale="0" nullable="false" jdbcType="4" autoIncrement="true"/>
+      <index name="iFundID" unique="true" columns="iFundID,eStatus,dReturnDate"/>
+      <index name="iRecordID" unique="true" columns="iRecordID"/>
+      <index name="iFundID_2" unique="false" columns="iFundID"/>
+    </table>
+  </data-source>
+</component>

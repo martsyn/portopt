@@ -9,6 +9,7 @@ require_once('MailchimpDatabase.php');
 require_once(__DIR__.'/../api/secrets.php');
 
 $apiKey = NULL;
+$error = NULL;
 
 $code = getGetVar('code');
 if (!$code) {

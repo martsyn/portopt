@@ -8,7 +8,7 @@ class MailchimpDatabase
     function getApiKey($userId)
     {
         $db = dbConnect();
-        $stmt = $db->prepare("SELECT AccessToken FROM Mailchimp WHERE UserId=?");
+        $stmt = $db->prepare("SELECT vAccessToken FROM hfin_list_mailchimp WHERE iManagerID=?");
         bind_param_array($stmt, 'i', $userId);
         $success = $stmt->execute();
         if (!$success)
@@ -22,17 +22,25 @@ class MailchimpDatabase
     function getListMembers($listId)
     {
         $db = dbConnect();
-        $stmt = $db->prepare("SELECT vEmail, dModifiedDate, eValidEmail FROM hfin_list_emails WHERE iListID=?");
+        $stmt = $db->prepare("
+select e.vEmail, e.dModifiedDate, e.iUnsubscribed, exists(
+    select 1
+    from hfin_list_name n
+    join hfin_investment_manager_clients c on n.iManagerID=c.iManagerID
+    join hfin_member m on c.iMemberId = m.iMemberId
+    where n.iListID = e.iListID and e.vEmail=m.vEmail) isConnection
+from hfin_list_emails e
+where e.iListID=?");
         bind_param_array($stmt, 'i', $listId);
         $success = $stmt->execute();
         if (!$success)
             err('Failed to retrieve save access token');
-        $stmt->bind_result($email, $modifiedDate, $valid);
+        $stmt->bind_result($email, $modifiedDate, $unsubscribed, $isConnection);
 
         $result = [];
         while ($stmt->fetch()) {
             $result[strtolower($email)] = new MailchimpMember(
-                NULL, $email, $modifiedDate, $valid == 'Yes', false, false);
+                NULL, $email, $modifiedDate, $unsubscribed == 0, $isConnection == 1, false);
         }
         return $result;
     }
@@ -42,9 +50,9 @@ class MailchimpDatabase
         $db = dbConnect();
         foreach ($members as $member) {
             $e = $db->escape_string($member->email);
-            $s = $member->subscribed ? 'Yes' : 'No';
+            $u = $member->subscribed ? 0 : 1;
             $d = $db->escape_string($member->modifiedDate);
-            $sql = "insert into hfin_list_emails (iListID, vEmail, eValidEmail, dModifiedDate) values ($listId, '$e', '$s', '$d')";
+            $sql = "insert into hfin_list_emails (iListID, vEmail, iUnsubscribed, eValidEmail, dModifiedDate) values ($listId, '$e', $u, 'Yes', '$d')";
             $db->query($sql);
         }
     }
@@ -54,42 +62,70 @@ class MailchimpDatabase
         $db = dbConnect();
         foreach ($members as $member) {
             $e = $db->escape_string($member->email);
-            $s = $member->subscribed ? 'Yes' : 'No';
+            $u = $member->subscribed ? 0 : 1;
             $d = $db->escape_string($member->modifiedDate);
-            $sql = "update hfin_list_emails set eValidEmail = '$s', dModifiedDate = '$d' where iListID = $listId and vEmail = '$e'";
+            $sql = "update hfin_list_emails set iUnsubscribed = $u, dModifiedDate = '$d' where iListID = $listId and vEmail = '$e'";
             $db->query($sql);
         }
     }
 
     public function getMembersFromEmails($dbListId, $newEmails)
     {
-        // todo: go to DB and check connections and followers
+        $members = [];
 
-        $result = [];
+        echo "count: ".count($newEmails)."\n";
 
-        foreach ($newEmails as $email){
-            $result[strtolower($email)] = new MailchimpMember(NULL, $email, '', true, false, false);
+        if (count($newEmails) > 0) {
+            $db = dbConnect();
+            $emails = "";
+            foreach ($newEmails as $email) {
+                if ($emails)
+                    $emails .= ',';
+                $emails .= "'" . $db->escape_string($email) . "'";
+            }
+
+            $sql = "select m.vEmail
+from hfin_list_name n
+join hfin_investment_manager_clients c on n.iManagerID=c.iManagerID
+join hfin_member m on c.iMemberId = m.iMemberId
+where n.iListID=$dbListId and m.vEmail in ($emails)";
+
+            $listEmails = $db->query($sql);
+            if (!$listEmails) {
+                error_log($db->error);
+                die();
+            }
+            while ($row = $listEmails->fetch_assoc())
+                $members[strtolower($row['vEmail'])] = NULL;
+
+            var_dump($members);
         }
-
+        $result = [];
+        foreach ($newEmails as $email) {
+            $result[strtolower($email)] = new MailchimpMember(NULL, $email, '', true, array_key_exists(strtolower($email), $members), false);
+        }
         return $result;
     }
 
     public function saveKey($userId, $apiKey)
     {
         $db = dbConnect();
-        $returnsStmt = $db->prepare("insert Mailchimp (UserId, AccessToken) values (?,?) on duplicate key update AccessToken=?");
+        $returnsStmt = $db->prepare("insert hfin_list_mailchimp (iManagerID, vAccessToken, dAddedDate) values (?,?,now()) on duplicate key update vAccessToken=?");
         bind_param_array(
             $returnsStmt,
             'i', $userId,
             's', $apiKey,
             's', $apiKey);
-        return $returnsStmt->execute();
+        if (!$returnsStmt->execute()){
+            error_log($db->error);
+        }
     }
 
     public function removeKey($userId)
     {
         $db = dbConnect();
-        $returnsStmt = $db->prepare("delete from Mailchimp where UserId=?");
+        //SELECT vAccessToken FROM hfin_list_mailchimp WHERE iManagerID=?
+        $returnsStmt = $db->prepare("update hfin_list_mailchimp set iActive=0 where iManagerID=?");
         if ($db->error)
             error_log("Failed to delete: ".$db->error);
         bind_param_array($returnsStmt, 'i', $userId);

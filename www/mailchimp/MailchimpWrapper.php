@@ -124,9 +124,10 @@ class MailchimpWrapper
         return (object) ['connection' => $connectionId, 'follower' => $followerId];
     }
 
-    public function getListMembers($mcListId, $mcGroupIds) {
-        $members = $this->get("lists/$mcListId/members",
-            ['fields' => 'members.id,members.email_address,members.status,members.last_changed,members.interests'])
+    public function getMembers($mcListId, $mcSegmentId, $mcGroupIds) {
+        $resource = $mcSegmentId ? "lists/$mcListId/segments/$mcSegmentId/members" : "lists/$mcListId/members";
+        $members = $this->get($resource,
+            ['fields' => 'members.id,members.email_address,members.status,members.last_changed,members.interests','count'=>2000])
             ->members;
 
         $result = [];
@@ -172,7 +173,7 @@ class MailchimpWrapper
     public function changeGroups($mcListId, $groupChanges)
     {
         foreach ($groupChanges as $id => $group){
-            $this->patch("lists/$mcListId/members/$id", NULL, ['interests' => [$group->group => $group->value]]);
+            echo $this->patch("lists/$mcListId/members/$id", NULL, ['interests' => [$group->group => $group->value]])/"\n\n";
         }
     }
 
@@ -181,12 +182,21 @@ class MailchimpWrapper
         $lists = $this->get('lists', ['fields' => 'lists.id,lists.name,lists.stats.member_count'])
             ->lists;
         $result = [];
-        foreach($lists as $list)
+        foreach($lists as $list) {
             $result[] = (object)[
                 'id' => $list->id,
                 'title' => $list->name,
                 'count' => $list->stats->member_count,
             ];
+            $segments = $this->get("lists/$list->id/segments", ['fields' => 'segments.id,segments.name,segments.member_count'])
+                ->segments;
+            foreach ($segments as $segment) {
+                $result[] = (object)[
+                    'id' => $list->id . '.' . $segment->id,
+                    'title' => $list->name . '.' . $segment->name,
+                    'count' => $segment->member_count];
+            }
+        }
         return $result;
     }
 

@@ -21,7 +21,7 @@ else {
     else {
         $mc = new MailchimpWrapper($apiKey);
         $result->connected = true;
-        $result->accountDetails = $mc->getAccountDetails();
+        $result->message = "Account: ".$mc->getAccountDetails();
         $result->cloudLists = $db->getCloudLists();
         $result->mailchimpLists = $mc->getLists();
     }

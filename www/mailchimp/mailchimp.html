@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" ng-app="hfinApp">
 <head>
 <meta charset="UTF-8">
 <title>Mailchimp integration</title>
 <style>
-#mailchimpFrame {
+iframe.mailchimpFrame {
     position: absolute;
     top: 50%;
     left: 50%;
@@ -15,40 +15,64 @@
     border: 1px solid #ccc;
 }
 </style>
-</head>
-<body>
-<h1>Mailchimp integration</h1>
-<h2>Connection status</h2>
-<span id="status"></span><span class="mcAccountLinked">, Account: <span id="accountDetails"></span></span>
-<br>
-<button id="link" class="mcAccountUnlinked" onclick="linkAccount()">Link Mailchimp account</button>
-<button id="unlink" class="mcAccountLinked" onclick="unlinkAccount()">Unlink Mailchimp account</button>
-<h2>Synchronized lists</h2>
-<p class="mcAccountUnlinked">Link an account first...</p>
-<table class="mcAccountLinked" border="1">
-<thead>
-<tr><th>Cloud docs list</th><th>Mailchimp list</th><th>&nbsp;</th></tr>
-</thead>
-<tbody id="lists"></tbody>
-</table>
-<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.9/angular.js"></script>
 <script>
-var userId = 2;
-
-$(function(){
-    updateStatus();
+var userId = 1969475452;
+var hfinApp = angular.module("hfinApp", []);
+hfinApp.controller("MailchimpController", function ($scope, $http){
+//    $scope.status = {connected: true, message: "all good"};
+    updateStatus($scope, $http);
 });
 
-function updateStatus(){
-    $.get("mailchimpStatus.php", {user: userId}, function(data){
-        $("#status").text(data.connected ? "Connected" : "Not connected");
-        if (!data.connected) {
-            $(".mcAccountLinked").hide();
-            $(".mcAccountUnlinked").show();
-            return;
-        }
-        $(".mcAccountLinked").show();
-        $(".mcAccountUnlinked").hide();
+
+</script>
+</head>
+<body ng-controller="MailchimpController">
+<h1>Mailchimp integration</h1>
+<h2>Connection status</h2>
+<p ng-cloak>{{status.connected ? "Connected" : "Not connected"}}. {{status.message}}</p>
+<button ng-hide="status.connected" ng-click="linkAccount()">Link Mailchimp account</button>
+<button ng-hide="!status.connected" onclick="unlinkAccount()">Unlink Mailchimp account</button>
+<h2>Synchronized lists</h2>
+<p ng-hide="status.connected">Link an account first...</p>
+<p ng-hide="!status.connected">
+    <select ng-model="newPair.mailchimpListId">
+        <option value="">Select Mailchimp list</option>
+        <option ng-repeat="list in status.mailchimpLists" value="{{list.id}}">{{list.title}} ({{list.count}} emails)</option>
+    </select>
+    link to
+    <select ng-model="newPair.cloudListId">
+        <option value="">Select Cloud Docs list</option>
+        <option value="+">Create new list</option>
+        <option ng-repeat="list in status.cloudLists" value="{{list.id}}">{{list.title}} ({{list.count}} emails)</option>
+    </select>
+    <button ng-disabled="">Sync</button>
+</p>
+
+<iframe class="mailchimpFrame" ng-cloak ng-if="showMailchimpFrame" ng-src="https://login.mailchimp.com/oauth2/authorize?response_type=code&client_id=755469067161&redirect_uri=https%3A%2F%2Fapi.hfinone.com%2Fmailchimp%2Fcomplete.php"></iframe>
+
+<script>
+"use strict";
+
+function updateStatus($scope, $http) {
+    $http.get("mailchimpStatus.php?user=" + userId)
+            .success(function (data) {
+                $scope.status = data;
+                $scope.linkAccount = function(){
+                    $scope.showMailchimpFrame = true;
+                    window.receiveCode = function(code){
+                        $scope.showMailchimpFrame = false;
+                        $scope.$apply();
+                        $http.get("saveKey.php?userId=" + userId + "&apiKey=" + code)
+                                .success(function () {
+                                updateStatus($scope, $http);
+                            });
+                    }
+                };
+            });
+}
+
+/*
         $("#accountDetails").text(data.accountDetails);
 
         var cdList = $("<select><option value='' disabled selected='selected'>Select cloud docs list<option value='+'>Create new list</option></select>");
@@ -58,33 +82,15 @@ function updateStatus(){
             cdList.append($("<option value='" + cl.id + "'>" + cl.title + " <i>(" + cl.count +  " emails)</i></option>"))
         }
 
-        $("#lists").append($("<tr></tr>")).append($("<td></td>")).append(cdList);
+        $("#lists").append($("<tr></tr>").append($("<td></td>").append(cdList)));
     });
 }
-
-function linkAccount(){
-    var url = "https://login.mailchimp.com/oauth2/authorize?response_type=code&client_id=755469067161&redirect_uri=https%3A%2F%2Fapi.hfinone.com%2Fmailchimp%2Fcomplete.php";
-    $('<iframe id="mailchimpFrame" src="' + url + '" />')
-        .appendTo('body');
-}
+*/
 
 function unlinkAccount(){
     $.ajax({
         url: "saveKey.php",
         data: {userId: userId},
-        dataType: "json",
-        success: function () {
-            updateStatus();
-        }});
-}
-
-// called from child window rendered by complete.php
-function receiveCode(code) {
-    $('#mailchimpFrame').remove();
-
-    $.ajax({
-        url: "saveKey.php",
-        data: {userId: userId, apiKey: code},
         dataType: "json",
         success: function () {
             updateStatus();

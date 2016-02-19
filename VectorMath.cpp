@@ -1,5 +1,7 @@
 #include "stdafx.h"
 
+#include "VectorMath.h"
+
 using namespace std;
 
 void CalcReturns(const vector<vector<float>>& vectors, const vector<float>& weights, vector<float>& returns)
@@ -10,6 +12,25 @@ void CalcReturns(const vector<vector<float>>& vectors, const vector<float>& weig
 		for (size_t j = 0; j < weights.size(); ++j)
 			sum += vectors[i][j] * weights[j];
 		returns[i] = sum;
+	}
+}
+
+void CalcReturnsNoReinvestment(const vector<vector<float>>& vectors, const vector<float>& weights, vector<float>& returns)
+{
+  vector<float> allocations = weights;
+  float prevSum = 1.0f;
+	
+  for (size_t i = 0; i < returns.size(); ++i)
+	{
+    auto allocSum = Sum(allocations);
+
+		float sum = 0.0f;
+    for (size_t j = 0; j < weights.size(); ++j)
+    {
+      sum += vectors[i][j] * allocations[j];
+      allocations[j] *= 1 + vectors[i][j];
+    }
+		returns[i] = sum/allocSum - 1;
 	}
 }
 

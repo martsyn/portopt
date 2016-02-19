@@ -77,6 +77,7 @@ function bind_param_array($stmt){
 function dbConnect()
 {
     //$db = new mysqli('localhost', 'avm', 'uZlyr8RoOiURQKSLdLoO', 'hfinone');
+    //$db = new mysqli('hfinetwork.net', 'hfindev', 'F1r3W1r3!', 'test');
     $db = new mysqli('localhost', 'root', 'n3W*s3rv3r2015!', 'hfin');
     if ($db->connect_error)
         err("Connection failed: " . $db->connect_error, 500);

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Examples for bootstrap-slider plugin">
+    <meta name="author" content="">
+
+    <title>Slider for Bootstrap Examples Page</title>
+
+    <!-- core CSS -->
+    <link href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css" rel="stylesheet">
+    <link href="http://cdnjs.cloudflare.com/ajax/libs/bootstrap-slider/4.9.0/css/bootstrap-slider.min.css" rel="stylesheet">
+
+    <style type='text/css'>
+        /* Example 1 custom styles */
+        #ex1Slider .slider-selection {
+            background: #BABABA;
+        }
+
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="jumbotron">
+        <h1>Slider for Bootstrap <small>bootstrap-slider.js</small></h1>
+        <p class="lead">Examples for the bootstrap-slider component.<p>
+    </div>
+
+    <div class="examples">
+        <div class='slider-example'>
+            <h3>Example 1:</h3>
+            <p>Basic example with custom formatter and colored selected region via CSS.</p>
+            <div class="well">
+                <input id="ex1" data-slider-id='ex1Slider' type="text" data-slider-min="-5" data-slider-max="20" data-slider-step="1" data-slider-value="14"/>
+            </div>
+        </div>
+
+    </div> <!-- /examples -->
+</div> <!-- /container -->
+
+
+<!-- core JavaScript
+================================================== -->
+<script type='text/javascript' src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+<script type='text/javascript' src="http://cdnjs.cloudflare.com/ajax/libs/bootstrap-slider/4.9.0/bootstrap-slider.min.js"></script>
+<script type='text/javascript'>
+    $(document).ready(function() {
+        /* Example 1 */
+        $('#ex1').slider({
+            formatter: function(value) {
+                return 'Current value: ' + value;
+            }
+        });
+    });
+</script>
+<!-- Placed at the end of the document so the pages load faster -->
+</body>
+</html>

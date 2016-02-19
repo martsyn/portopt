@@ -196,8 +196,6 @@ extern "C" {
     optimizationConstraintClass.property("required", &OptimizationConstraintPhp::getRequired, &OptimizationConstraintPhp::setRequired);
     optimizationConstraintClass.property("min", &OptimizationConstraintPhp::getMin, &OptimizationConstraintPhp::setMin);
     optimizationConstraintClass.property("max", &OptimizationConstraintPhp::getMax, &OptimizationConstraintPhp::setMax);
-    optimizationConstraintClass.property("boo", "moo", Public);
-
 
     extension.add(move(optimizationConstraintClass));
 
