@@ -71,7 +71,7 @@ foreach ($dbMembers as $email => $dbMember){
             $newMembers[] = $dbMember;
     }
 }
-
+/*
 echo "\n\nnew members: ".count($newMembers)."\n";
 foreach ($newMembers as $m)
     echo $m->email."\n";
@@ -85,9 +85,7 @@ $idToGroup = array_flip((array) $mcGroupIds);
 var_dump($idToGroup);
 foreach ($groupChanges as $g)
     echo $g->id."->".$idToGroup[$g->group]." = ".$g->value."\n";
-
+*/
 $mc->addMembers($mcListId, $newMembers, $mcGroupIds);
 $mc->changeSubscriptions($mcListId, $subChanges);
 $mc->changeGroups($mcListId, $groupChanges);
-
-echo "\n\nGreat Success\n";

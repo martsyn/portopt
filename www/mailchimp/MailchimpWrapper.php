@@ -172,8 +172,8 @@ class MailchimpWrapper
 
     public function changeGroups($mcListId, $groupChanges)
     {
-        foreach ($groupChanges as $id => $group){
-            echo $this->patch("lists/$mcListId/members/$id", NULL, ['interests' => [$group->group => $group->value]])/"\n\n";
+        foreach ($groupChanges as $g){
+            $this->patch("lists/$mcListId/members/$g->id", NULL, ['interests' => [$g->group => $g->value]])/"\n\n";
         }
     }
 

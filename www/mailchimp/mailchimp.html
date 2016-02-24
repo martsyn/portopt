@@ -16,16 +16,6 @@ iframe.mailchimpFrame {
 }
 </style>
 <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.9/angular.js"></script>
-<script>
-var userId = 1969475452;
-var hfinApp = angular.module("hfinApp", []);
-hfinApp.controller("MailchimpController", function ($scope, $http){
-//    $scope.status = {connected: true, message: "all good"};
-    updateStatus($scope, $http);
-});
-
-
-</script>
 </head>
 <body ng-controller="MailchimpController">
 <h1>Mailchimp integration</h1>
@@ -41,7 +31,7 @@ hfinApp.controller("MailchimpController", function ($scope, $http){
         <option ng-repeat="list in status.mailchimpLists" value="{{list.id}}">{{list.title}} ({{list.count}} emails)</option>
     </select>
     link to
-    <select ng-model="newPair.cloudListId">
+    <select ng-model="newPair.cloudListId" ng-change="onCloudListChanged()">
         <option value="">Select Cloud Docs list</option>
         <option value="+">Create new list</option>
         <option ng-repeat="list in status.cloudLists" value="{{list.id}}">{{list.title}} ({{list.count}} emails)</option>
@@ -54,38 +44,49 @@ hfinApp.controller("MailchimpController", function ($scope, $http){
 <script>
 "use strict";
 
+var userId = 1969475452;
+var hfinApp = angular.module("hfinApp", []);
+
+hfinApp.controller("MailchimpController", function ($scope, $http){
+//    $scope.status = {connected: true, message: "all good"};
+    updateStatus($scope, $http);
+
+    $scope.newPair = {mailchimpListId: "", cloudListId: ""};
+
+    $scope.linkAccount = function(){
+        $scope.showMailchimpFrame = true;
+        window.receiveCode = function(code){
+            $scope.showMailchimpFrame = false;
+            $scope.$apply();
+            $http.get("saveKey.php?user=" + userId + "&apiKey=" + code)
+                    .success(function () {
+                        updateStatus($scope, $http);
+                    });
+        }
+    };
+
+    $scope.onCloudListChanged = function(){
+        if ($scope.newPair.cloudListId == "+"){
+            var title = prompt("Enter new list title");
+            if (title == null) {
+                $scope.newPair.cloudListId = "";
+                return;
+            }
+            $http.get("createList.php?user=" + userId + "&title=" + encodeURIComponent(title))
+                    .success(function(data){
+                        $scope.status.cloudLists.push({id: data.id, title: title, count: 0});
+                        $scope.newPair.cloudListId = data.id;
+                    });
+        };
+    };
+});
+
 function updateStatus($scope, $http) {
     $http.get("mailchimpStatus.php?user=" + userId)
             .success(function (data) {
                 $scope.status = data;
-                $scope.linkAccount = function(){
-                    $scope.showMailchimpFrame = true;
-                    window.receiveCode = function(code){
-                        $scope.showMailchimpFrame = false;
-                        $scope.$apply();
-                        $http.get("saveKey.php?userId=" + userId + "&apiKey=" + code)
-                                .success(function () {
-                                updateStatus($scope, $http);
-                            });
-                    }
-                };
             });
 }
-
-/*
-        $("#accountDetails").text(data.accountDetails);
-
-        var cdList = $("<select><option value='' disabled selected='selected'>Select cloud docs list<option value='+'>Create new list</option></select>");
-
-        for (var i in data.cloudLists){
-            var cl = data.cloudLists[i];
-            cdList.append($("<option value='" + cl.id + "'>" + cl.title + " <i>(" + cl.count +  " emails)</i></option>"))
-        }
-
-        $("#lists").append($("<tr></tr>").append($("<td></td>").append(cdList)));
-    });
-}
-*/
 
 function unlinkAccount(){
     $.ajax({

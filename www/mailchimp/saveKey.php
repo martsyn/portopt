@@ -5,7 +5,7 @@ require_once('MailchimpDatabase.php');
 
 addJsonHeader();
 
-$userId = getGetVar('userId');
+$userId = getGetVar('user');
 $apiKey = getGetVar('apiKey');
 
 if (!is_numeric($userId))

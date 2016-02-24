@@ -73,8 +73,6 @@ where e.iListID=?");
     {
         $members = [];
 
-        echo "count: ".count($newEmails)."\n";
-
         if (count($newEmails) > 0) {
             $db = dbConnect();
             $emails = "";
@@ -137,5 +135,28 @@ where n.iListID=$dbListId and m.vEmail in ($emails)";
         return [
             ['id' => 1, 'title' => 'Silly list', 'count' => 999]
         ];
+    }
+
+    public function createList($userId, $title)
+    {
+        $db = dbConnect();
+        $escapedTitle = $db->escape_string($title);
+        $query = "
+set @listId = (select conv(left(md5(rand()),8),16,10) AS id from hfin_list_name having id not in (select iListID from hfin_list_name) limit 1);
+insert hfin_list_name (iListID, iManagerID, vListName, dCreatedDate) values (@listId, $userId, '$escapedTitle', now());
+select @listId;";
+
+        $id = NULL;
+        if ($db->multi_query($query))
+        {
+            do {
+                if ($result = $db->store_result()) {
+                    if ($row = $result->fetch_row())
+                        $id = $row[0];
+                    $result->free();
+                }
+            } while ($db->next_result());
+        }
+        return $id;
     }
 }
