@@ -3,6 +3,7 @@
 
 #include "stdafx.h"
 #include "OptimizationTargets.h"
+#include "VectorMath.h"
 #include "Optimize.h"
 #include "onullstream.h"
 #include "Constraint.h"
@@ -82,21 +83,22 @@ void _tmain() {
   auto maximize = true;
 
   vector<Constraint> constraints = {
-    Constraint(false, 0.1f, 0.8f),
-    Constraint(false, 0.0f, 1.0f),
-    Constraint(true,  0.1f, 0.11f),
-    Constraint(true,  0.2f, 0.2f),
-    Constraint(false, 0.2f, 0.2f),
+    //Constraint(false, 0.1f, 0.8f),
+    //Constraint(false, 0.0f, 1.0f),
+    //Constraint(true,  0.1f, 0.11f),
+    //Constraint(true,  0.2f, 0.2f),
+    //Constraint(false, 0.2f, 0.2f),
   };
 
   constraints.reserve(portCount);
 
   for (auto i = constraints.size(); i < portCount; ++i)
-    constraints.push_back(Constraint(false, 0, 1));
+    constraints.push_back(Constraint(false, 0.05f, 0.25f));
 
-  auto weights = optimize(constraints, rows, returnsFunc, maximize, /*cout*/ onullstream::instance());
-
-  auto res = returnsFunc(weights);
+  auto weights = optimize(constraints, rows, returnsFunc, maximize, onullstream::instance());
+  vector<float> returns(retCount);
+  CalcReturns(rows, weights, returns);
+  auto res = returnsFunc(returns);
   cout << "result: " << res << "\nweights: ";
   for (auto w : weights)
     cout << w << ' ';

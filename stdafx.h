@@ -23,7 +23,4 @@
 #include <functional>
 #include <algorithm>
 #include <numeric>
-
-
-
-// TODO: reference additional headers your program requires here
+#include <cassert>
