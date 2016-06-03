@@ -4,14 +4,13 @@
 
 using namespace std;
 
-float getWorstResult(bool maximize)
-{
-  return maximize ? -numeric_limits<float>::infinity() : numeric_limits<float>::infinity();
+float getWorstResult(bool maximize) {
+  return maximize ? -numeric_limits<float>::infinity()
+                  : numeric_limits<float>::infinity();
 }
 
 // Scale x so that sum of its components=1. Zero sum remains unscaled
-void normalize(vector<float>& x, const vector<Constraint> constraints)
-{
+void normalize(vector<float> &x, const vector<Constraint> constraints) {
   auto sum = Sum(x);
   if (sum == 0.0f || sum == 1.0f)
     return;
@@ -23,13 +22,12 @@ void normalize(vector<float>& x, const vector<Constraint> constraints)
   // adjust all other values by that smallest difference
   // repeat until overflow is matched
   bool matched;
-  do
-  {
+  do {
     auto minDiff = numeric_limits<float>::infinity();
     size_t count = 0;
-    for (size_t i = 0; i < x.size(); ++i)
-    {
-      auto diff = decrease ? x[i] - constraints[i].min() : constraints[i].max() - x[i];
+    for (size_t i = 0; i < x.size(); ++i) {
+      auto diff =
+          decrease ? x[i] - constraints[i].min() : constraints[i].max() - x[i];
       if (diff > 0) {
         if (diff < minDiff)
           minDiff = diff;
@@ -40,10 +38,9 @@ void normalize(vector<float>& x, const vector<Constraint> constraints)
 
     auto diff = overflow / count;
     matched = diff <= minDiff;
-    if (!matched)
-    {
+    if (!matched) {
       diff = minDiff;
-      overflow -= diff*count;
+      overflow -= diff * count;
     }
     for (size_t i = 0; i < x.size(); ++i)
       if (decrease ? x[i] > constraints[i].min() : x[i] < constraints[i].max())
@@ -51,17 +48,16 @@ void normalize(vector<float>& x, const vector<Constraint> constraints)
   } while (!matched);
 }
 
-void optimalWalk(
-  const vector<Constraint>& constraints, 
-  const vector<vector<float>>& returns, 
-  function<float(const vector<float>&)> func, 
-  bool maximize, 
-  ostream& log, 
-  float initialStep, 
-  float accuracy,
-  vector<float> &best,
-  float &bestRes)
-{
+void growInternal(vector<float> &weights, const vector<Constraint> &constraints,
+                  float sum);
+void shrinkInternal(vector<float> &weights,
+                    const vector<Constraint> &constraints, float sum);
+
+void optimalWalk(const vector<Constraint> &constraints,
+                 const vector<vector<float>> &returns,
+                 function<float(const vector<float> &)> func, bool maximize,
+                 ostream &log, float initialStep, float accuracy,
+                 vector<float> &best, float &bestRes) {
   size_t portCount = returns[0].size();
 
   // optimization
@@ -72,106 +68,198 @@ void optimalWalk(
   float nextRes;
   const float worstRes = getWorstResult(maximize);
 
-  while (step > accuracy)
-  {
+  while (step > accuracy) {
     nextRes = bestRes;
 
-    for (size_t i = 0; i < portCount; ++i)
-    {
-      auto& constraint = constraints[i];
+    for (size_t i = 0; i < portCount; ++i) {
+      auto &constraint = constraints[i];
       auto min = constraint.min();
       auto max = constraint.max();
 
       float stepUpRes;
-      if (best[i] < max && best[i] >= min)
-      {
+      auto space = max - best[i];
+      if (space > 0) {
         stepUp = best;
-        stepUp[i] += step;
-        if (stepUp[i] > max)
+        float change;
+        if (space > step) {
+          stepUp[i] += step;
+          change = step;
+        } else {
           stepUp[i] = max;
-        normalize(stepUp, constraints);
+          change = space;
+        }
+        shrinkInternal(stepUp, constraints, 1 + change);
         stepUpRes = func(stepUp);
-      }
-      else
+      } else
         stepUpRes = worstRes;
 
       float stepDownRes;
-      if (best[i] > min)
-      {
+      space = best[i] - min;
+      if (space > 0) {
+        float change;
         stepDown = best;
-        stepDown[i] -= step;
-        if (stepDown[i] < min)
+        if (space > step) {
+          stepDown[i] -= step;
+          change = step;
+        } else {
           stepDown[i] = min;
-        normalize(stepDown, constraints);
+          change = space;
+        }
+        growInternal(stepDown, constraints, 1 - change);
         stepDownRes = func(stepDown);
-      }
-      else
+      } else
         stepDownRes = worstRes;
 
-      if (maximize
-        ? stepUpRes > nextRes || stepDownRes > nextRes
-        : stepUpRes < nextRes || stepDownRes < nextRes)
-      {
-        if (maximize
-          ? stepUpRes > stepDownRes
-          : stepUpRes < stepDownRes)
-        {
+      if (maximize ? stepUpRes > nextRes || stepDownRes > nextRes
+                   : stepUpRes < nextRes || stepDownRes < nextRes) {
+        if (maximize ? stepUpRes > stepDownRes : stepUpRes < stepDownRes) {
           next = stepUp;
           nextRes = stepUpRes;
-        }
-        else
-        {
+        } else {
           next = stepDown;
           nextRes = stepDownRes;
         }
 
-        log << "found improvement step=" << step << " port=" << i << " new best=" << nextRes << "\n";
+		//log << "found improvement step=" << step << " port=" << i << " new best=" << nextRes << "\n";
       }
     }
 
-    if (maximize
-      ? nextRes > bestRes
-      : nextRes < bestRes)
-    {
+    if (maximize ? nextRes > bestRes : nextRes < bestRes) {
       best = next;
       bestRes = nextRes;
-      log << "shifted " << step << " new best=" << bestRes << " :: weights: ";
-      for (auto w : best)
-        log << w << ' ';
-      log << "\n";
-    }
-    else
+      /*      log << "shifted " << step << " new best=" << bestRes << " ::
+         weights: ";
+            for (auto w : best)
+              log << w << ' ';
+            log << "\n";*/
+    } else
       step *= 0.5f;
   }
 }
 
-vector<float> optimize(
-  const vector<Constraint>& constraints,
-  const vector<vector<float>>& returns,
-  function<float(const vector<float>&)> returnsFunc,
-  bool maximize,
-  ostream& log)
-{
+void growInternal(vector<float> &weights, const vector<Constraint> &constraints,
+                  float sum) {
+  while (sum < 0.99999f) {
+    auto space = numeric_limits<float>::infinity();
+    size_t count = 0;
+    for (size_t i = 0; i < weights.size(); ++i) {
+      auto &w = weights[i];
+      auto &c = constraints[i];
+      if (w < c.max()) {
+        auto diff = c.max() - w;
+        if (diff < space)
+          space = diff;
+        ++count;
+      }
+    }
+    if (count == 0)
+      throw "max constraints are too low";
+
+    auto done = space * count >= 1 - sum;
+    auto bump = done ? (1 - sum) / count : space;
+
+    sum = 0.0f;
+    for (size_t i = 0; i < weights.size(); ++i) {
+      auto &w = weights[i];
+      auto &c = constraints[i];
+      if (w < c.max())
+        w += bump;
+      sum += w;
+    }
+
+    if (done)
+      break;
+  }
+}
+
+void shrinkInternal(vector<float> &weights,
+                    const vector<Constraint> &constraints, float sum) {
+  while (sum > 1.00001f) {
+    auto space = numeric_limits<float>::infinity();
+    size_t count = 0;
+    for (size_t i = 0; i < weights.size(); ++i) {
+      auto &w = weights[i];
+      auto &c = constraints[i];
+      if (w > c.min()) {
+        auto diff = w - c.min();
+        if (diff < space)
+          space = diff;
+        ++count;
+      }
+    }
+    if (count == 0)
+      throw "min constraints are too low";
+
+    auto done = space * count >= sum - 1;
+    auto bump = done ? (sum - 1) / count : space;
+
+    sum = 0.0f;
+    for (size_t i = 0; i < weights.size(); ++i) {
+      auto &w = weights[i];
+      auto &c = constraints[i];
+      if (w > c.min())
+        w -= bump;
+      sum += w;
+    }
+
+    if (done)
+      break;
+  }
+}
+
+void fixConstraints(vector<float> &weights,
+                    const vector<Constraint> &constraints) {
+  float sum = 0.f;
+  for (size_t i = 0; i < weights.size(); ++i) {
+    auto &w = weights[i];
+    auto &c = constraints[i];
+
+    if (w > c.max())
+      w = c.max();
+    else if (w < c.min())
+      w = c.min();
+
+    sum += w;
+  }
+
+  if (sum < 1)
+    growInternal(weights, constraints, sum);
+  else if (sum > 1)
+    shrinkInternal(weights, constraints, sum);
+}
+
+vector<float> optimize(const vector<Constraint> &constraints,
+                       const vector<vector<float>> &returns,
+                       function<float(const vector<float> &)> returnsFunc,
+                       bool maximize, ostream &log) {
   size_t portCount = returns[0].size();
 
-  vector<float> weights(portCount, 1.0f/portCount);
+  vector<float> weights(portCount, 1.0f / portCount);
   const int digits = 4;
   const float accuracy = pow(10.0f, -digits - 1);
 
   vector<float> totals(returns.size());
-  auto func = [&](const vector<float>& ws)
-  {
+  auto func = [&](const vector<float> &ws) {
     CalcReturns(returns, ws, totals);
     return returnsFunc(totals);
   };
   float result = func(weights);
 
   vector<Constraint> noConstraints(portCount, Constraint(true, 0, 1));
-  optimalWalk(noConstraints, returns, func, maximize, log, 0.1f, accuracy, weights, result);
+  optimalWalk(noConstraints, returns, func, maximize, log, 0.1f, accuracy,
+              weights, result);
 
-  normalize(weights, constraints);
+  log << "before constraints" << weights << " result: " << result << endl;
 
-  optimalWalk(constraints, returns, func, maximize, log, 0.1f, accuracy, weights, result);
+  fixConstraints(weights, constraints);
+  result = func(weights);
+
+  log << "after fixing constraints" << weights << " result: " << result << endl;
+
+  optimalWalk(constraints, returns, func, maximize, log, 0.1f, accuracy,
+              weights, result);
+  
+  log << "after constrained optimization" << weights << " result: " << result << endl;
 
   return weights;
 }

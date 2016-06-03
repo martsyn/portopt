@@ -66,3 +66,16 @@ float Correlation(const vector<float>& a, const vector<float>& b)
 
 	return upSum / sqrt(downSumA*downSumB);
 }
+
+std::ostream& operator<<(std::ostream& os, const std::vector<float>& v)
+{
+  os << '[' << v.size() << "] {";
+  for (auto i = v.begin(); i != v.end(); ++i)
+  {
+    if (i != v.begin())
+      os << ", ";
+    os << *i;
+  }
+  os << '}';
+  return os;
+}

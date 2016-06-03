@@ -48,14 +48,14 @@ vector<float> ReadVector(const char *path) {
 }
 
 void _tmain() {
-  auto path = "c:\\projects\\dumps\\gallery.tsv";
+  auto path = "c:\\projects\\dumps\\quantvest index returns.tsv";
   cout << "reading " << path << "\n";
   const auto rows = ReadMatrix(path);
   size_t portCount = rows[0].size();
   size_t retCount = rows.size();
   cout << "read " << portCount << " portfolios with " << retCount
        << " points each\n";
-
+/*
   const auto benchmarkPath = "c:\\projects\\dumps\\spx.tsv";
   cout << "reading " << benchmarkPath << "\n";
   auto benchmark = ReadVector(benchmarkPath);
@@ -65,6 +65,8 @@ void _tmain() {
     cerr << "mismatching counts\n";
     exit(1);
   }
+
+*/
   /*
   auto returnsFunc = CustomRatio(
       {
@@ -93,14 +95,21 @@ void _tmain() {
   constraints.reserve(portCount);
 
   for (auto i = constraints.size(); i < portCount; ++i)
-    constraints.push_back(Constraint(false, 0.05f, 0.25f));
-
-  auto weights = optimize(constraints, rows, returnsFunc, maximize, onullstream::instance());
-  vector<float> returns(retCount);
-  CalcReturns(rows, weights, returns);
-  auto res = returnsFunc(returns);
-  cout << "result: " << res << "\nweights: ";
-  for (auto w : weights)
-    cout << w << ' ';
-  cout << endl;
+    constraints.push_back(Constraint(false, 0.03f, 0.20f));
+  try {
+	  auto weights = optimize(constraints, rows, returnsFunc, maximize, cout/*onullstream::instance()*/);
+	  vector<float> returns(retCount);
+	  CalcReturns(rows, weights, returns);
+	  auto res = returnsFunc(returns);
+	  auto sum = 0.f;
+	  for (auto w : weights)
+		  sum += w;
+	  cout << "result: " << res << "\nweights: " << weights << " (sum=" << sum << ")\n";
+	  //  for (auto w : weights)
+	  //    cout << w << ' ';
+	  cout << endl;
+  }
+  catch (const char* x) {
+	  cerr << x << endl;
+  }
 }

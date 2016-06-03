@@ -151,8 +151,13 @@ Value optimizeCustomTarget(Parameters &params)
 
   vector<std::vector<float>> benchmarks{};
 
-  auto weights = optimize(constraints, singleReturns, CustomRatio(scales, benchmarks), true, onullstream::instance());
-  return (vector<float>) weights;
+  try {
+	  auto weights = optimize(constraints, singleReturns, CustomRatio(scales, benchmarks), true, onullstream::instance());
+	  return (vector<float>) weights;
+  }
+  catch (const char* x) {
+	  throw new Exception(x)
+  }
 }
 
 /**
