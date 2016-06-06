@@ -29,3 +29,5 @@
 
 **/.idea/workspace.xml
 /www/api/secrets.php
+/www/auth/*
+/.vs
