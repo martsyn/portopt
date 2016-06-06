@@ -153,7 +153,7 @@ void growInternal(vector<float> &weights, const vector<Constraint> &constraints,
       }
     }
     if (count == 0)
-      throw "max constraints are too low";
+      throw "Max constraints are too low";
 
     auto done = space * count >= 1 - sum;
     auto bump = done ? (1 - sum) / count : space;
@@ -188,7 +188,7 @@ void shrinkInternal(vector<float> &weights,
       }
     }
     if (count == 0)
-      throw "min constraints are too low";
+      throw "Min constraints are too low";
 
     auto done = space * count >= sum - 1;
     auto bump = done ? (sum - 1) / count : space;
