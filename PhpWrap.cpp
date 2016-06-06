@@ -156,7 +156,8 @@ Value optimizeCustomTarget(Parameters &params)
 	  return (vector<float>) weights;
   }
   catch (const char* x) {
-	  throw new Exception(x)
+	  warning << x << std::flush;
+	  throw Exception(x);
   }
 }
 
