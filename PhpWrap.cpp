@@ -4,10 +4,12 @@
 #include <map>
 #include <functional>
 #include <vector>
+#include <cmath>
 #include "Optimize.h"
 #include "OptimizationTargets.h"
 #include "Constraint.h"
 #include "onullstream.h"
+#include "VectorMath.h"
 
 using namespace Php;
 using namespace std;
@@ -93,6 +95,8 @@ public:
       _min = static_cast<double>(params[1]);
     if (params.size() >= 3)
       _max = static_cast<double>(params[2]);
+		if (params.size() >= 4)
+			_max = static_cast<double>(params[3]);
   }
 
   Value __toString() const
@@ -117,47 +121,95 @@ public:
   }
 };
 
-Value optimizeCustomTarget(Parameters &params)
-{
+void statsFromMap(const map<string, double> factors, ReturnStats &stats) {
+  for (auto &fp : factors) {
+    auto mpp = targetFieldMap.find(fp.first);
+    if (mpp != targetFieldMap.end()) {
+      stats.*(mpp->second) = fp.second;
+      //      out << mpp->first << "=" << tp.second << "\n";
+    } else
+      warning << "Unknown target field " << fp.first << "=" << fp.second
+              << flush;
+  }
+}
+
+Value optimizeCustomTarget(Parameters &params) {
   vector<Object> constraintsPhp = params[0];
   vector<vector<double>> returns = params[1];
-  map<string, double> targets = params[2];
+  map<string, double> factorMap = params[2];
+  map<string, double> targetMap;
+  if (params.size() > 3) {
+	  targetMap = params[3];
+	  warning << "Got targets: ";
+	  for (const auto &p : targetMap) {
+		  warning << p.first << "=" << p.second << "  ";
+	  }
+  }
+
+  auto retCount = returns[0].size();
+  auto portCount = returns.size();
+
+  if (constraintsPhp.size() != portCount)
+	  throw "Mismatching returns and constraints count";
 
   vector<Constraint> constraints;//(returns.size(), Constraint(false, 0, 1));
   constraints.reserve(constraintsPhp.size());
   for (const Object &c : constraintsPhp)
-    constraints.push_back(*dynamic_cast<OptimizationConstraintPhp*>(c.implementation()));
+    constraints.push_back(
+        *dynamic_cast<OptimizationConstraintPhp *>(c.implementation()));
 
   // transpose and convert to float
-  vector<vector<float>> singleReturns(returns[0].size());
-  for (size_t i = 0; i < singleReturns.size(); ++i)
-  {
-    singleReturns[i].resize(returns.size());
-    for (size_t j = 0; j < returns.size(); ++j)
+  vector<vector<float>> singleReturns(retCount);
+  for (size_t i = 0; i < retCount; ++i) {
+    singleReturns[i].resize(portCount);
+    for (size_t j = 0; j < portCount; ++j)
       singleReturns[i][j] = returns[j][i];
   }
 
-  ReturnStats scales{};
-  for (auto& tp : targets) {
-    auto mpp = targetFieldMap.find(tp.first);
-    if (mpp != targetFieldMap.end())
-    {
-      scales.*(mpp->second) = tp.second;
-//      out << mpp->first << "=" << tp.second << "\n";
-    }
-    else
-      warning << "Unknown target field " << tp.first << "=" << tp.second << flush;
-  }
+  ReturnStats factors, targets = ReturnStats::nan;
+  statsFromMap(factorMap, factors);
+  statsFromMap(targetMap, targets);
+
+  //warning << "totalReturn=" << targets.totalReturn << " :: ";
+  //warning << "deviation=" << targets.deviation << " :: ";
+  //warning << "slopeDeviation=" << targets.slopeDeviation << " :: ";
+  //warning << "positiveDeviation=" << targets.positiveDeviation << " :: ";
+  //warning << "negativeDeviation=" << targets.negativeDeviation << " :: ";
+  //warning << "worstDrawdown =" << targets.worstDrawdown << " :: ";
+
+  //warning.flush();
 
   vector<std::vector<float>> benchmarks{};
 
   try {
-	  auto weights = optimize(constraints, singleReturns, CustomRatio(scales, benchmarks), true, onullstream::instance());
-	  return (vector<float>) weights;
-  }
-  catch (const char* x) {
-	  warning << x << std::flush;
-	  throw Exception(x);
+    auto returnsFunc =
+        CustomRatio(OptimizationParams{factors, targets}, benchmarks);
+    auto weights =
+		optimize(constraints, singleReturns, returnsFunc,
+                 true, onullstream::instance());
+
+	vector<float> portReturns(retCount);
+	CalcReturns(singleReturns, weights, portReturns);
+	//auto res = returnsFunc(portReturns);
+	auto sum = 0.f;
+	for (auto w : weights)
+		sum += w;
+	//warning << "result: " << res << "\nweights: " << weights << " (sum=" << sum << ")\n";
+
+	auto stats = GetStats(portReturns, {});
+
+	warning << "totalReturn: " << stats.totalReturn;
+	//warning << "deviation: " << stats.deviation;
+	//warning << "slopeDeviation: " << stats.slopeDeviation;
+	//warning << "positiveDeviation: " << stats.positiveDeviation;
+	//warning << "negativeDeviation: " << stats.negativeDeviation;
+	//warning << "worstDrawdown: " << stats.worstDrawdown;
+	warning.flush();
+
+	return (vector<float>)weights;
+  } catch (const char *x) {
+    warning << x << std::flush;
+    throw Exception(x);
   }
 }
 
@@ -184,7 +236,8 @@ extern "C" {
     {
       ByVal("constraints", Type::Array),
       ByVal("returns", Type::Array),
-      ByVal("targets", Type::Array),
+      ByVal("factors", Type::Array),
+      ByVal("targets", Type::Array, false),
       ByVal("benchmarks", Type::Array, false),
     });
 

@@ -17,10 +17,28 @@ struct ReturnStats
 	float negativeDeviation;
 	float worstDrawdown;
 	std::vector<float> benchmarkCorrelations;
+
+	const static ReturnStats nan;
+
+	bool isSet() const {
+		return
+			!std::isnan(totalReturn) ||
+			!std::isnan(deviation) ||
+			!std::isnan(slopeDeviation) ||
+			!std::isnan(positiveDeviation) ||
+			!std::isnan(negativeDeviation) ||
+			!std::isnan(worstDrawdown);
+	}
+};
+
+struct OptimizationParams
+{
+	ReturnStats factors;
+	ReturnStats targets;
 };
 
 ReturnStats GetStats(const std::vector<float>& returns, const std::vector<std::vector<float>>& benchmarks);
 
 float ScaleStats(const ReturnStats& scales, const ReturnStats& results);
 
-std::function<float(const std::vector<float>&)> CustomRatio(const ReturnStats& scales, const std::vector<std::vector<float>>& benchmarks);
+std::function<float(const std::vector<float>&)> CustomRatio(const OptimizationParams& params, const std::vector<std::vector<float>>& benchmarks);

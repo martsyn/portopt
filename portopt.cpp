@@ -67,20 +67,27 @@ void _tmain() {
   }
 
 */
-  /*
+  
+  auto targets = ReturnStats::nan;
+  //targets.totalReturn = 0.3f;
+  targets.deviation = 0.06f/sqrt(12.0f);
+
   auto returnsFunc = CustomRatio(
-      {
-          1.0f,   // totalReturn;
-          0.0f,  // deviation;
-          0.0f,   // slopeDeviation;
-          0.0f,   // positiveDeviation;
-          0.0f,   // negativeDeviation;
-          0.0f,   // worstDrawdown;
-          {-1.0f}, // benchmarkCorrelations
+	  OptimizationParams{
+	  ReturnStats{
+		  1.0f,   // totalReturn;
+		  -1.0f,  // deviation;
+		  0.0f,   // slopeDeviation;
+		  0.0f,   // positiveDeviation;
+		  0.0f,   // negativeDeviation;
+		  0.0f,   // worstDrawdown;
+		  {}, // benchmarkCorrelations
+			  },
+				  targets
       },
-      {benchmark});
-      */
-  auto returnsFunc = ReturnsToStDevRatio;
+      {});
+
+  // auto returnsFunc = ReturnsToStDevRatio;
   // auto returnsFunc = CorrelationToBenchmark(benchmark);
   auto maximize = true;
 
@@ -92,10 +99,10 @@ void _tmain() {
     //Constraint(false, 0.2f, 0.2f),
   };
 
-  constraints.reserve(portCount);
+//  constraints.reserve(portCount);
 
   for (auto i = constraints.size(); i < portCount; ++i)
-    constraints.push_back(Constraint(false, 0.03f, 0.20f));
+    constraints.push_back(Constraint(false, 0.0f, 1.0f));
   try {
 	  auto weights = optimize(constraints, rows, returnsFunc, maximize, cout/*onullstream::instance()*/);
 	  vector<float> returns(retCount);
@@ -105,8 +112,18 @@ void _tmain() {
 	  for (auto w : weights)
 		  sum += w;
 	  cout << "result: " << res << "\nweights: " << weights << " (sum=" << sum << ")\n";
-	  //  for (auto w : weights)
-	  //    cout << w << ' ';
+
+  	auto stats = GetStats(returns, {});
+
+	cout << "totalReturn: " << stats.totalReturn << endl;
+cout << "deviation: " << stats.deviation << endl;
+cout << "slopeDeviation: " << stats.slopeDeviation << endl;
+cout << "positiveDeviation: " << stats.positiveDeviation << endl;
+cout << "negativeDeviation: " << stats.negativeDeviation << endl;
+cout << "worstDrawdown: " << stats.worstDrawdown << endl;
+
+cout << "annualized vol: " << stats.deviation*sqrt(12.0f) << endl;
+
 	  cout << endl;
   }
   catch (const char* x) {

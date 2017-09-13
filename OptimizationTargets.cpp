@@ -4,6 +4,15 @@
 
 using namespace std;
 
+const ReturnStats ReturnStats::nan = {
+	nanf(""),
+	nanf(""),
+	nanf(""),
+	nanf(""),
+	nanf(""),
+	nanf(""),
+};
+
 float ReturnsToStDevRatio(const vector<float> &returns) {
   auto sum = Sum(returns);
   auto mean = sum / returns.size();
@@ -169,10 +178,10 @@ ReturnStats GetStats(const std::vector<float> &returns,
     }
   }
 
-  s.deviation = sqrt(devSum) / returns.size();
-  s.positiveDeviation = sqrt(posDevSum) / posCount;
-  s.negativeDeviation = sqrt(negDevSum) / negCount;
-  s.slopeDeviation = sqrt(slopeDevSum) / returns.size();
+  s.deviation = sqrt(devSum / returns.size());
+  s.positiveDeviation = sqrt(posDevSum / posCount);
+  s.negativeDeviation = sqrt(negDevSum / negCount);
+  s.slopeDeviation = sqrt(slopeDevSum / returns.size());
   s.benchmarkCorrelations.resize(benchmarks.size());
   for (size_t j = 0; j < benchmarks.size(); ++j)
     s.benchmarkCorrelations[j] =
@@ -193,11 +202,49 @@ float ScaleStats(const ReturnStats &s, const ReturnStats &r) {
   return stats;
 }
 
+float ScaleTargetStat(float s, float t, float r) {
+	if (s == 0.0f)
+		return 1.0f;
+	if (!isnan(t)) {
+		if (s > 0.0f) {
+			if (r > t)
+				r = t;
+		}
+		else {
+			if (r < t)
+				r = t;
+		}
+	}
+	return pow(r, s);
+}
+
+float ScaleTargetedStats(
+	const ReturnStats &s,
+	const ReturnStats &t,
+	const ReturnStats &r) {
+  auto stats = 1.0f;
+  stats *= ScaleTargetStat(s.totalReturn, t.totalReturn, r.totalReturn);
+  stats *= ScaleTargetStat(s.deviation, t.deviation, r.deviation);
+  stats *= ScaleTargetStat(s.slopeDeviation, t.slopeDeviation, r.slopeDeviation);
+  stats *= ScaleTargetStat(s.positiveDeviation, t.positiveDeviation, r.positiveDeviation);
+  stats *= ScaleTargetStat(s.negativeDeviation, t.negativeDeviation, r.negativeDeviation);
+  stats *= ScaleTargetStat(s.worstDrawdown, t.worstDrawdown, r.worstDrawdown);
+
+  for (size_t i = 0; i < r.benchmarkCorrelations.size(); ++i)
+    stats *= pow(r.benchmarkCorrelations[i], s.benchmarkCorrelations[i]);
+  return stats;
+}
+
 std::function<float(const std::vector<float> &)>
-CustomRatio(const ReturnStats &scales,
+CustomRatio(const OptimizationParams &params,
             const std::vector<std::vector<float>> &benchmarks) {
+  if (params.targets.isSet())
+    return [=](const vector<float> &returns) {
+      auto stats = GetStats(returns, benchmarks);
+      return ScaleTargetedStats(params.factors, params.targets, stats);
+    };
   return [=](const vector<float> &returns) {
     auto stats = GetStats(returns, benchmarks);
-    return ScaleStats(scales, stats);
+    return ScaleStats(params.factors, stats);
   };
 }
