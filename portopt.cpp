@@ -47,7 +47,7 @@ vector<float> ReadVector(const char *path) {
   return res;
 }
 
-void main() {
+int main() {
   auto path = "someReturns.tsv";
   cout << "reading " << path << "\n";
   const auto rows = ReadMatrix(path);
