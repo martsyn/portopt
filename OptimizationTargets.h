@@ -42,3 +42,6 @@ ReturnStats GetStats(const std::vector<float>& returns, const std::vector<std::v
 float ScaleStats(const ReturnStats& scales, const ReturnStats& results);
 
 std::function<float(const std::vector<float>&)> CustomRatio(const OptimizationParams& params, const std::vector<std::vector<float>>& benchmarks);
+
+std::function<float(const std::vector<float> &)> CustomVolTarget(const float targetVol);
+std::function<float(const std::vector<float> &)> CustomVolTargetNormFactors(const float targetVol, const float returnFactor, const float skewFactor, const float kurtFactor);

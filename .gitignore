@@ -31,3 +31,6 @@
 /www/api/secrets.php
 /www/auth/*
 /.vs
+Debug/
+Release/
+*.user

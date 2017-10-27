@@ -248,3 +248,39 @@ CustomRatio(const OptimizationParams &params,
     return ScaleStats(params.factors, stats);
   };
 }
+
+float targetFactor(float result, float target, float devScale)
+{
+	return 1.f / (1 + abs(result - target) / devScale);
+}
+
+std::function<float(const std::vector<float> &)>
+CustomVolTarget(const float targetVol) {
+	return [=](const vector<float> &returns) {
+		auto sum = Sum(returns);
+		auto count = returns.size();
+		auto mean = sum / count;
+		auto sum2 = 0.0f;
+		for (auto f : returns) {
+			auto dev = f - mean;
+			sum2 += dev*dev;
+		}
+		auto vol = sqrt(sum2 / count);
+		
+		return mean*targetFactor(vol, targetVol, 0.005);
+	};
+}
+
+std::function<float(const std::vector<float> &)>
+CustomVolTargetNormFactors(const float returnFactor, const float targetVol, const float skewFactor, const float kurtFactor) {
+	return [=](const vector<float> &returns) {
+		const auto s = getNormStats(returns);
+
+		const auto returnResult = exp(pow(s.mean, returnFactor));
+		const auto volResult = targetFactor(s.stdev, targetVol, 0.005);
+		const auto skewResult = exp(pow(s.skew, skewFactor));
+		const auto kurtResult = exp(pow(s.kurt, kurtFactor));
+
+		return returnResult*volResult*skewResult*kurtResult;
+	};
+}

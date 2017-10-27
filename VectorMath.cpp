@@ -47,6 +47,19 @@ float Mean(const vector<float>& x)
 	return Sum(x) / x.size();
 }
 
+float vol(const vector<float>& x)
+{
+	const auto sum = Sum(x);
+	const auto count = x.size();
+	const auto mean = sum / count;
+	auto sum2 = 0.0f;
+	for (auto f : x) {
+		const auto dev = f - mean;
+		sum2 += dev*dev;
+	}
+	return sqrt(sum2 / count);
+}
+
 float Correlation(const vector<float>& a, const vector<float>& b)
 {
 	if (a.size() != b.size())
@@ -67,7 +80,7 @@ float Correlation(const vector<float>& a, const vector<float>& b)
 	return upSum / sqrt(downSumA*downSumB);
 }
 
-std::ostream& operator<<(std::ostream& os, const std::vector<float>& v)
+ostream& operator<<(ostream& os, const vector<float>& v)
 {
   os << '[' << v.size() << "] {";
   for (auto i = v.begin(); i != v.end(); ++i)
@@ -78,4 +91,30 @@ std::ostream& operator<<(std::ostream& os, const std::vector<float>& v)
   }
   os << '}';
   return os;
+}
+
+NormStats NormStats::normalize(const int normalization_count) const
+{
+	return NormStats(mean*normalization_count, stdev*sqrt(static_cast<float>(normalization_count)), skew, kurt);
+}
+
+NormStats getNormStats(const vector<float> &returns)
+{
+	const auto sum = Sum(returns);
+	const auto count = returns.size();
+	const auto mean = sum / count;
+	auto sum2 = 0.0f;
+	auto sum3 = 0.0f;
+	auto sum4 = 0.0f;
+	for (auto f : returns) {
+		const auto dev = f - mean;
+		sum2 += dev*dev;
+		sum3 += dev*dev*dev;
+		sum4 += dev*dev*dev*dev;
+	}
+	const auto stdev = sqrt(sum2 / count);
+	const auto skew = sum3 / (count*stdev*stdev*stdev);
+	const auto kurt = sum4 / (count*stdev*stdev*stdev*stdev);
+
+	return NormStats(mean, stdev, skew, kurt);
 }

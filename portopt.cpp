@@ -48,7 +48,7 @@ vector<float> ReadVector(const char *path) {
 }
 
 void _tmain() {
-  auto path = "c:\\projects\\dumps\\quantvest index returns.tsv";
+  auto path = "someReturns.tsv";
   cout << "reading " << path << "\n";
   const auto rows = ReadMatrix(path);
   size_t portCount = rows[0].size();
@@ -89,7 +89,7 @@ void _tmain() {
 
   // auto returnsFunc = ReturnsToStDevRatio;
   // auto returnsFunc = CorrelationToBenchmark(benchmark);
-  auto maximize = true;
+  // auto maximize = true;
 
   vector<Constraint> constraints = {
     //Constraint(false, 0.1f, 0.8f),
@@ -99,12 +99,13 @@ void _tmain() {
     //Constraint(false, 0.2f, 0.2f),
   };
 
-//  constraints.reserve(portCount);
-
+  constraints.reserve(portCount);
   for (auto i = constraints.size(); i < portCount; ++i)
-    constraints.push_back(Constraint(false, 0.0f, 1.0f));
+	  constraints.push_back(Constraint(false, 0.0f, 1.0f));
+
+  /*
   try {
-	  auto weights = optimize(constraints, rows, returnsFunc, maximize, cout/*onullstream::instance()*/);
+	  auto weights = optimize(constraints, rows, returnsFunc, maximize, cout);
 	  vector<float> returns(retCount);
 	  CalcReturns(rows, weights, returns);
 	  auto res = returnsFunc(returns);
@@ -129,4 +130,17 @@ cout << "annualized vol: " << stats.deviation*sqrt(12.0f) << endl;
   catch (const char* x) {
 	  cerr << x << endl;
   }
+
+	*/
+
+	auto chart = buildEfficientFrontier(constraints, rows, 12);
+
+	cout.precision(4);
+
+	for (const auto &point : chart)
+	{
+		const auto & s = point.stats;
+		cout << "vol=" << s.stdev*100.f << "% ret=" << s.mean*100.f << "% skew=" << s.skew << " kurt=" << s.kurt;
+		cout << point.weights << endl;
+	}
 }

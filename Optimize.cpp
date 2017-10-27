@@ -1,6 +1,9 @@
 #include "stdafx.h"
 #include "InitialPointProvider.h"
 #include "VectorMath.h"
+#include "OptimizationTargets.h"
+#include "onullstream.h"
+#include "Optimize.h"
 
 using namespace std;
 
@@ -262,4 +265,31 @@ vector<float> optimize(const vector<Constraint> &constraints,
   log << "after constrained optimization" << weights << " result: " << result << endl;
 
   return weights;
+}
+
+vector<EfficientFrontierPoint> buildEfficientFrontier(
+	const vector<Constraint> &constraints, const vector<vector<float>> &returns, const int normalization_count)
+{
+	vector<EfficientFrontierPoint> result;
+	const auto retCount = returns.size();
+	vector<float> totals(retCount);
+	float volTarget = 0;
+	for (;;) {
+		const auto stdevTarget = volTarget/sqrt(static_cast<float>(normalization_count));
+		const auto func = CustomVolTargetNormFactors(1, stdevTarget, 0, 0);
+		const auto weights = optimize(constraints, returns, func, true, onullstream::instance());
+
+		CalcReturns(returns, weights, totals);
+		const auto stats = getNormStats(totals).normalize(normalization_count);
+
+		if (stats.stdev - volTarget < -0.005f)
+			break;
+
+		result.push_back(EfficientFrontierPoint(stats, weights));
+
+		volTarget = floor(stats.stdev*100.f + 1.5f)*0.01f;
+		cout << "got " << stats.stdev*100.f << "% next target=" << volTarget*100 << "%\n";
+
+	}
+	return result;
 }
