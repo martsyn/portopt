@@ -9,7 +9,6 @@
 #include "OptimizationTargets.h"
 #include "Constraint.h"
 #include "onullstream.h"
-#include "VectorMath.h"
 
 using namespace Php;
 using namespace std;
@@ -213,6 +212,92 @@ Value optimizeCustomTarget(Parameters &params) {
   }
 }
 
+template <typename T> T GetVal(const map<string, Value> &map, const string &key, const T def) {
+	const auto iter = map.find(key);
+	return iter != map.end() ? static_cast<const T>(iter->second) : def;
+}
+
+Value testPhpCpp(Parameters &params) {
+	warning << "got " << params.size() << " params" << std::flush;
+	return map<string, int>({ {"aaa", 111} });
+}
+
+Value buildEfficientFrontierPhp(Parameters &params) {
+	try {
+		map<string, Value> paramMap = params[0];
+
+		auto i = paramMap.find("series");
+		if (i == paramMap.end())
+			throw "'series' is missing";
+
+		map<string, map<string, Value>> series = i->second;
+		vector<string> ids;
+		vector<vector<float>> singleReturns;
+		vector<Constraint> constraints;
+
+		size_t retCount = 0;
+		for (auto j = series.begin(); j != series.end(); ++j) {
+			string id = j->first;
+			ids.push_back(id);
+			auto k = j->second.find("returns");
+			if (k == j->second.end())
+				throw (string("missing 'returns' from ") + id).c_str();
+			vector<double> returnsDouble = k->second;
+			if (!retCount) {
+				retCount = returnsDouble.size();
+				if (retCount < 2)
+					throw "count of 'returns' < 2";
+			}
+			else if (retCount != returnsDouble.size())
+				throw "mismatching size of 'returns'";
+			singleReturns.push_back(vector<float>(returnsDouble.begin(), returnsDouble.end()));
+			
+			bool required = GetVal(j->second, "required", true);
+			float min = GetVal(j->second, "min", 0.0);
+			float max = GetVal(j->second, "max", 1.0);
+			constraints.push_back(Constraint(required, min, max));
+		}
+		const auto portCount = singleReturns.size();
+		
+		if (portCount < 2)
+			throw "count of 'series' < 2";
+		
+		size_t normalizationCount = GetVal(paramMap, "normalizationCount", 12);
+		float returnFactor = GetVal(paramMap, "returnFactor", 1.0);
+		float skewFactor = GetVal(paramMap, "skewFactor", 0.0);
+		float kurtFactor = GetVal(paramMap, "kurtFactor", 0.0);
+
+		vector<vector<float>> returns(retCount);
+		for (size_t r = 0; r < retCount; ++r) {
+			returns[r].resize(portCount);
+			for (size_t p = 0; p < portCount; ++p)
+				returns[r][p] = singleReturns[p][r];
+		}
+
+		auto points = buildEfficientFrontier(constraints, returns, normalizationCount, returnFactor, skewFactor, kurtFactor);
+
+		vector<map<string, Value>> result;
+		for (const auto point : points) {
+			map<string, Value> phpPoint;
+			phpPoint["annualizedReturn"] = point.stats.mean;
+			phpPoint["annualizedVol"] = point.stats.stdev;
+			phpPoint["skew"] = point.stats.skew;
+			phpPoint["kurt"] = point.stats.kurt;
+			map<string, double> weights;
+			for (size_t i = 0; i < point.weights.size(); ++i)
+				weights[ids[i]] = point.weights[i];
+			phpPoint["weights"] = weights;
+			result.push_back(phpPoint);
+		}
+
+		return result;
+	}
+	catch (const char *x) {
+		warning << x << std::flush;
+		throw Exception(x);
+	}
+}
+
 /**
  *  tell the compiler that the get_module is a pure C function
  */
@@ -240,6 +325,9 @@ extern "C" {
       ByVal("targets", Type::Array, false),
       ByVal("benchmarks", Type::Array, false),
     });
+
+    extension.add<testPhpCpp>("testPhpCpp");
+    extension.add<buildEfficientFrontierPhp>("buildEfficientFrontier");
 
     Php::Class<OptimizationConstraintPhp> optimizationConstraintClass("OptimizationConstraint");
 

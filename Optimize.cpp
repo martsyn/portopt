@@ -1,5 +1,4 @@
 #include "stdafx.h"
-#include "InitialPointProvider.h"
 #include "VectorMath.h"
 #include "OptimizationTargets.h"
 #include "onullstream.h"
@@ -268,7 +267,10 @@ vector<float> optimize(const vector<Constraint> &constraints,
 }
 
 vector<EfficientFrontierPoint> buildEfficientFrontier(
-	const vector<Constraint> &constraints, const vector<vector<float>> &returns, const int normalization_count)
+	const vector<Constraint> &constraints,
+	const vector<vector<float>> &returns,
+	const size_t normalization_count,
+	const float returnFactor, const float skewFactor, const float kurtFactor)
 {
 	vector<EfficientFrontierPoint> result;
 	const auto retCount = returns.size();
@@ -276,7 +278,7 @@ vector<EfficientFrontierPoint> buildEfficientFrontier(
 	float volTarget = 0;
 	for (;;) {
 		const auto stdevTarget = volTarget/sqrt(static_cast<float>(normalization_count));
-		const auto func = CustomVolTargetNormFactors(1, stdevTarget, 0, 0);
+		const auto func = CustomVolTargetNormFactors(returnFactor, stdevTarget, skewFactor, kurtFactor);
 		const auto weights = optimize(constraints, returns, func, true, onullstream::instance());
 
 		CalcReturns(returns, weights, totals);
@@ -288,7 +290,7 @@ vector<EfficientFrontierPoint> buildEfficientFrontier(
 		result.push_back(EfficientFrontierPoint(stats, weights));
 
 		volTarget = floor(stats.stdev*100.f + 1.5f)*0.01f;
-		cout << "got " << stats.stdev*100.f << "% next target=" << volTarget*100 << "%\n";
+		//cout << "got " << stats.stdev*100.f << "% next target=" << volTarget*100 << "%\n";
 
 	}
 	return result;

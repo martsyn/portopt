@@ -133,7 +133,7 @@ cout << "annualized vol: " << stats.deviation*sqrt(12.0f) << endl;
 
 	*/
 
-	auto chart = buildEfficientFrontier(constraints, rows, 12);
+	auto chart = buildEfficientFrontier(constraints, rows, 12, 1, 0, 0);
 
 	cout.precision(4);
 
