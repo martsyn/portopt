@@ -266,32 +266,105 @@ vector<float> optimize(const vector<Constraint> &constraints,
   return weights;
 }
 
+vector<float> optimizeWithConstraints(
+	const vector<Constraint>& constraints,
+	const vector<vector<float>>& returns,
+	function<float(const ReturnStats&)> factor_function,
+	function<float(const ReturnStats&)> constraint_function,
+	float constraint_target, float constraint_corridor,
+	ostream& log)
+{
+	size_t portCount = returns[0].size();
+
+	vector<float> weights(portCount, 1.0f / portCount);
+	const int digits = 4;
+	const float accuracy = pow(10.0f, -digits - 1);
+
+	vector<float> totals(returns.size());
+	ReturnStats stats;
+	auto wideWalkFunc = [&](const vector<float>& ws)
+	{
+		CalcReturns(returns, ws, totals);
+		GetStats(totals, {}, stats);
+		auto factor_result = factor_function(stats);
+		auto constraint_result = constraint_function(stats);
+		auto constraint_dev = (constraint_result - constraint_target) / constraint_corridor;
+		auto constraint_factor = 1.f / (1.f + constraint_dev*constraint_dev);
+		return factor_result*constraint_factor;
+	};
+	float result = wideWalkFunc(weights);
+
+	vector<Constraint> noConstraints(portCount, Constraint(true, 0, 1));
+	optimalWalk(noConstraints, returns, wideWalkFunc, true, log, 0.1f, accuracy,
+	            weights, result);
+
+	log << "before constraints" << weights << " result: " << result << endl;
+
+	fixConstraints(weights, constraints);
+	result = wideWalkFunc(weights);
+
+	log << "after fixing constraints" << weights << " result: " << result << endl;
+
+	optimalWalk(constraints, returns, wideWalkFunc, true, log, 0.1f, accuracy,
+	            weights, result);
+
+	log << "after constrained optimization" << weights << " result: " << result << endl;
+
+	auto narrowWalkFunc = [&](const vector<float>& ws)
+	{
+		CalcReturns(returns, ws, totals);
+		GetStats(totals, {}, stats);
+		auto factor_result = factor_function(stats);
+		auto constraint_result = constraint_function(stats);
+		auto constraint_dev = (constraint_result - constraint_target) / (constraint_corridor*0.01);
+		auto constraint_factor = 1.f / (1.f + abs(constraint_dev));
+		return factor_result*constraint_factor;
+	};
+	result = narrowWalkFunc(weights);
+
+	optimalWalk(constraints, returns, narrowWalkFunc, true, log, 0.1f, accuracy,
+	            weights, result);
+
+	log << "after narrow optimization" << weights << " result: " << result << endl;
+
+	return weights;
+}
+
 vector<EfficientFrontierPoint> buildEfficientFrontier(
 	const vector<Constraint> &constraints,
 	const vector<vector<float>> &returns,
-	const size_t normalization_count,
-	const float returnFactor, const float skewFactor, const float kurtFactor)
+	const size_t normalizationCount,
+	const ReturnStats &factors)
 {
 	vector<EfficientFrontierPoint> result;
 	const auto retCount = returns.size();
 	vector<float> totals(retCount);
 	float volTarget = 0;
+	const float sqrtNormFactor = sqrt(static_cast<float>(normalizationCount));
 	for (;;) {
-		const auto stdevTarget = volTarget/sqrt(static_cast<float>(normalization_count));
-		const auto func = CustomVolTargetNormFactors(returnFactor, stdevTarget, skewFactor, kurtFactor);
-		const auto weights = optimize(constraints, returns, func, true, onullstream::instance());
+		const auto stdevTarget = volTarget/sqrtNormFactor;
+
+		auto factorFunc = [&](const ReturnStats &stats) {
+			return ScaleStats(factors, stats);
+		};
+		auto constraintFunc = [](const ReturnStats &stats) {
+			return stats.stdDeviation;
+		};
+
+		const auto weights = optimizeWithConstraints(
+			constraints, returns, 
+			factorFunc, constraintFunc, stdevTarget, 0.01f, onullstream::instance());
 
 		CalcReturns(returns, weights, totals);
-		const auto stats = getNormStats(totals).normalize(normalization_count);
-
-		if (stats.stdev - volTarget < -0.005f)
+		ReturnStats stats;
+		GetStats(totals, {}, stats);
+		stats.normalize(normalizationCount);
+		if (stats.stdDeviation - volTarget < -0.005f)
 			break;
 
 		result.push_back(EfficientFrontierPoint(stats, weights));
 
-		volTarget = floor(stats.stdev*100.f + 1.5f)*0.01f;
-		//cout << "got " << stats.stdev*100.f << "% next target=" << volTarget*100 << "%\n";
-
+		volTarget = floor(stats.stdDeviation*100.f + 1.5f)*0.01f;
 	}
 	return result;
 }

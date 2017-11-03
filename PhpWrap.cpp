@@ -9,6 +9,7 @@
 #include "OptimizationTargets.h"
 #include "Constraint.h"
 #include "onullstream.h"
+#include "VectorMath.h"
 
 using namespace Php;
 using namespace std;
@@ -61,8 +62,8 @@ Value optimizeSimpleTarget(Parameters &params)
 
 map<string, float ReturnStats::*> targetFieldMap = 
 {
-  {"return", &ReturnStats::totalReturn},
-  {"volatility", &ReturnStats::deviation },
+  {"return", &ReturnStats::meanReturn},
+  {"volatility", &ReturnStats::stdDeviation },
   {"slopeDeviation", &ReturnStats::slopeDeviation },
   {"posDeviation", &ReturnStats::positiveDeviation },
   {"negDeviation", &ReturnStats::negativeDeviation },
@@ -195,9 +196,10 @@ Value optimizeCustomTarget(Parameters &params) {
 		sum += w;
 	//warning << "result: " << res << "\nweights: " << weights << " (sum=" << sum << ")\n";
 
-	auto stats = GetStats(portReturns, {});
+	ReturnStats stats;
+  	GetStats(portReturns, {}, stats);
 
-	warning << "totalReturn: " << stats.totalReturn;
+	warning << "meanReturn: " << stats.meanReturn;
 	//warning << "deviation: " << stats.deviation;
 	//warning << "slopeDeviation: " << stats.slopeDeviation;
 	//warning << "positiveDeviation: " << stats.positiveDeviation;
@@ -263,9 +265,11 @@ Value buildEfficientFrontierPhp(Parameters &params) {
 			throw "count of 'series' < 2";
 		
 		size_t normalizationCount = GetVal(paramMap, "normalizationCount", 12);
-		float returnFactor = GetVal(paramMap, "returnFactor", 1.0);
-		float skewFactor = GetVal(paramMap, "skewFactor", 0.0);
-		float kurtFactor = GetVal(paramMap, "kurtFactor", 0.0);
+		ReturnStats factors;
+		factors.reset();
+		factors.meanReturn = GetVal(paramMap, "returnFactor", 1.0);
+		factors.skewness = GetVal(paramMap, "skewFactor", 0.0);
+		factors.kurtosis = GetVal(paramMap, "kurtFactor", 0.0);
 
 		vector<vector<float>> returns(retCount);
 		for (size_t r = 0; r < retCount; ++r) {
@@ -274,15 +278,19 @@ Value buildEfficientFrontierPhp(Parameters &params) {
 				returns[r][p] = singleReturns[p][r];
 		}
 
-		auto points = buildEfficientFrontier(constraints, returns, normalizationCount, returnFactor, skewFactor, kurtFactor);
+		auto points = buildEfficientFrontier(constraints, returns, normalizationCount, factors);
 
 		vector<map<string, Value>> result;
 		for (const auto point : points) {
 			map<string, Value> phpPoint;
-			phpPoint["annualizedReturn"] = point.stats.mean;
-			phpPoint["annualizedVol"] = point.stats.stdev;
-			phpPoint["skew"] = point.stats.skew;
-			phpPoint["kurt"] = point.stats.kurt;
+			phpPoint["annualizedReturn"] = point.stats.meanReturn;
+			phpPoint["annualizedVol"] = point.stats.stdDeviation;
+			phpPoint["negativeDeviation"] = point.stats.negativeDeviation;
+			phpPoint["positiveDeviation"] = point.stats.positiveDeviation;
+			phpPoint["slopeDeviation"] = point.stats.slopeDeviation;
+			phpPoint["worstDrawdown"] = point.stats.worstDrawdown;
+			phpPoint["skewness"] = point.stats.skewness;
+			phpPoint["kurtosis"] = point.stats.kurtosis;
 			map<string, double> weights;
 			for (size_t i = 0; i < point.weights.size(); ++i)
 				weights[ids[i]] = point.weights[i];

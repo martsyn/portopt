@@ -11,6 +11,8 @@ const ReturnStats ReturnStats::nan = {
 	nanf(""),
 	nanf(""),
 	nanf(""),
+	nanf(""),
+	nanf(""),
 };
 
 float ReturnsToStDevRatio(const vector<float> &returns) {
@@ -114,89 +116,109 @@ CorrelationToBenchmark(const vector<float> &benchmark) {
   };
 }
 
-ReturnStats GetStats(const std::vector<float> &returns,
-                     const std::vector<std::vector<float>> &benchmarks) {
-  ReturnStats s{};
+void GetStats(
+	const std::vector<float>& returns,
+	const std::vector<std::vector<float>>& benchmarks,
+	ReturnStats& s)
+{
+	s.reset();
 
-  struct BenchVars {
-    float mean, dotProd, devSum;
-  };
-  vector<BenchVars> benchVars(benchmarks.size());
+	struct BenchVars
+	{
+		float mean, dotProd, devSum;
+	};
+	vector<BenchVars> benchVars(benchmarks.size());
 
-  for (size_t j = 0; j < benchmarks.size(); ++j)
-    benchVars[j].mean = Mean(benchmarks[j]);
+	for (size_t j = 0; j < benchmarks.size(); ++j)
+		benchVars[j].mean = Mean(benchmarks[j]);
 
-  auto currentDrawdown = 0.0f;
+	auto currentDrawdown = 0.0f, total = 0.0f;
 
-  // first pass
-  for (auto r : returns) {
-    s.totalReturn += r;
+	// first pass
+	for (auto r : returns)
+	{
+		total += r;
 
-    currentDrawdown += r;
-    if (s.worstDrawdown < currentDrawdown)
-      s.worstDrawdown = currentDrawdown;
-    if (currentDrawdown > 0.0f)
-      currentDrawdown = 0.0f;
-  }
-  auto mean = s.totalReturn / returns.size();
-  auto devSum = 0.0f;
-  auto cum = 0.0f;
-  auto slopeDevSum = 0.0f;
-  auto posDevSum = 0.0f;
-  auto negDevSum = 0.0f;
-  size_t posCount = 0;
-  size_t negCount = 0;
+		currentDrawdown += r;
+		if (s.worstDrawdown < currentDrawdown)
+			s.worstDrawdown = currentDrawdown;
+		if (currentDrawdown > 0.0f)
+			currentDrawdown = 0.0f;
+	}
+	
+	const auto count = returns.size();
+	s.meanReturn = total / count;
 
-  // second pass
-  for (size_t i = 0; i < returns.size(); ++i) {
-    auto r = returns[i];
+	auto devSum = 0.0f;
+	auto cum = 0.0f;
+	auto slopeDevSum = 0.0f;
+	auto posDevSum = 0.0f;
+	auto negDevSum = 0.0f;
+	auto sum3 = 0.f;
+	auto sum4 = 0.f;
+	size_t posCount = 0;
+	size_t negCount = 0;
 
-    auto dev = r - mean;
-    // deviation
-    devSum += dev * dev;
+	// second pass
+	for (size_t i = 0; i < count; ++i)
+	{
+		auto r = returns[i];
 
-    // positive and negative semi-deviations
-    if (dev > 0) {
-      posDevSum += dev * dev;
-      ++posCount;
-    } else if (dev < 0) {
-      negDevSum += dev * dev;
-      ++negCount;
-    }
+		auto dev = r - s.meanReturn;
+		// deviation
+		devSum += dev * dev;
+		sum3 += dev*dev*dev;
+		sum4 += dev*dev*dev*dev;
 
-    // slope deviation (K-ratio)
-    cum += r;
-    auto slopeDev = mean * (i + 1) - cum;
-    slopeDevSum += slopeDev * slopeDev;
+		// positive and negative semi-deviations
+		if (dev > 0)
+		{
+			posDevSum += dev * dev;
+			++posCount;
+		}
+		else if (dev < 0)
+		{
+			negDevSum += dev * dev;
+			++negCount;
+		}
 
-    // benchmark correlations
-    for (size_t j = 0; j < benchmarks.size(); ++j) {
-      auto &v = benchVars[j];
-      auto devB = benchmarks[j][i] - v.mean;
-      v.dotProd += dev * devB;
-      v.devSum += devB * devB;
-    }
-  }
+		// slope deviation (K-ratio)
+		cum += r;
+		const auto slopeDev = s.meanReturn * (i + 1) - cum;
+		slopeDevSum += slopeDev * slopeDev;
 
-  s.deviation = sqrt(devSum / returns.size());
-  s.positiveDeviation = sqrt(posDevSum / posCount);
-  s.negativeDeviation = sqrt(negDevSum / negCount);
-  s.slopeDeviation = sqrt(slopeDevSum / returns.size());
-  s.benchmarkCorrelations.resize(benchmarks.size());
-  for (size_t j = 0; j < benchmarks.size(); ++j)
-    s.benchmarkCorrelations[j] =
-        benchVars[j].dotProd / sqrt(devSum * benchVars[j].devSum);
+		// benchmark correlations
+		for (size_t j = 0; j < benchmarks.size(); ++j)
+		{
+			auto& v = benchVars[j];
+			const auto devB = benchmarks[j][i] - v.mean;
+			v.dotProd += dev * devB;
+			v.devSum += devB * devB;
+		}
+	}
 
-  return s;
+	s.stdDeviation = sqrt(devSum / count);
+	s.positiveDeviation = sqrt(posDevSum / posCount);
+	s.negativeDeviation = sqrt(negDevSum / negCount);
+	s.slopeDeviation = sqrt(slopeDevSum / count);
+	s.skewness = sum3 / (count*s.stdDeviation*s.stdDeviation*s.stdDeviation);
+	s.kurtosis = sum4 / (count*s.stdDeviation*s.stdDeviation*s.stdDeviation*s.stdDeviation);
+	s.benchmarkCorrelations.resize(benchmarks.size());
+	for (size_t j = 0; j < benchmarks.size(); ++j)
+		s.benchmarkCorrelations[j] =
+			benchVars[j].dotProd / sqrt(devSum * benchVars[j].devSum);
 }
 
 float ScaleStats(const ReturnStats &s, const ReturnStats &r) {
-  auto stats = pow(r.totalReturn, s.totalReturn) *
-               pow(r.deviation, s.deviation) *
-               pow(r.slopeDeviation, s.slopeDeviation) *
-               pow(r.positiveDeviation, s.positiveDeviation) *
-               pow(r.negativeDeviation, s.negativeDeviation) *
-               pow(r.worstDrawdown, s.worstDrawdown);
+	auto stats =
+		pow(r.meanReturn, s.meanReturn) *
+		pow(r.stdDeviation, s.stdDeviation) *
+		pow(r.slopeDeviation, s.slopeDeviation) *
+		pow(r.positiveDeviation, s.positiveDeviation) *
+		pow(r.negativeDeviation, s.negativeDeviation) *
+		pow(r.worstDrawdown, s.worstDrawdown)*
+		pow(r.skewness, s.skewness)*
+		pow(r.kurtosis, s.kurtosis);
   for (size_t i = 0; i < r.benchmarkCorrelations.size(); ++i)
     stats *= pow(r.benchmarkCorrelations[i], s.benchmarkCorrelations[i]);
   return stats;
@@ -223,12 +245,14 @@ float ScaleTargetedStats(
 	const ReturnStats &t,
 	const ReturnStats &r) {
   auto stats = 1.0f;
-  stats *= ScaleTargetStat(s.totalReturn, t.totalReturn, r.totalReturn);
-  stats *= ScaleTargetStat(s.deviation, t.deviation, r.deviation);
+  stats *= ScaleTargetStat(s.meanReturn, t.meanReturn, r.meanReturn);
+  stats *= ScaleTargetStat(s.stdDeviation, t.stdDeviation, r.stdDeviation);
   stats *= ScaleTargetStat(s.slopeDeviation, t.slopeDeviation, r.slopeDeviation);
   stats *= ScaleTargetStat(s.positiveDeviation, t.positiveDeviation, r.positiveDeviation);
   stats *= ScaleTargetStat(s.negativeDeviation, t.negativeDeviation, r.negativeDeviation);
   stats *= ScaleTargetStat(s.worstDrawdown, t.worstDrawdown, r.worstDrawdown);
+  stats *= ScaleTargetStat(s.skewness, t.skewness, r.skewness);
+  stats *= ScaleTargetStat(s.kurtosis, t.kurtosis, r.kurtosis);
 
   for (size_t i = 0; i < r.benchmarkCorrelations.size(); ++i)
     stats *= pow(r.benchmarkCorrelations[i], s.benchmarkCorrelations[i]);
@@ -239,14 +263,18 @@ std::function<float(const std::vector<float> &)>
 CustomRatio(const OptimizationParams &params,
             const std::vector<std::vector<float>> &benchmarks) {
   if (params.targets.isSet())
-    return [=](const vector<float> &returns) {
-      auto stats = GetStats(returns, benchmarks);
-      return ScaleTargetedStats(params.factors, params.targets, stats);
-    };
-  return [=](const vector<float> &returns) {
-    auto stats = GetStats(returns, benchmarks);
-    return ScaleStats(params.factors, stats);
-  };
+	  return [=](const vector<float>& returns)
+	  {
+		  ReturnStats stats;
+		  GetStats(returns, benchmarks, stats);
+		  return ScaleTargetedStats(params.factors, params.targets, stats);
+	  };
+	return [=](const vector<float>& returns)
+	{
+		ReturnStats stats;
+		GetStats(returns, benchmarks, stats);
+		return ScaleStats(params.factors, stats);
+	};
 }
 
 float targetFactor(float result, float target, float devScale)
@@ -272,14 +300,14 @@ CustomVolTarget(const float targetVol) {
 }
 
 std::function<float(const std::vector<float> &)>
-CustomVolTargetNormFactors(const float returnFactor, const float targetVol, const float skewFactor, const float kurtFactor) {
+CustomVolTargetNormFactors(const float targetStdev, const float returnFactor, const float skewFactor, const float kurtFactor) {
 	return [=](const vector<float> &returns) {
 		const auto s = getNormStats(returns);
 
-		const auto returnResult = exp(pow(s.mean, returnFactor));
-		const auto volResult = targetFactor(s.stdev, targetVol, 0.005);
-		const auto skewResult = exp(pow(s.skew, skewFactor));
-		const auto kurtResult = exp(pow(s.kurt, kurtFactor));
+		const auto returnResult = s.mean;
+		const auto volResult = targetFactor(s.stdev, targetStdev, 0.005f);
+		const auto skewResult = 1.f;//exp(pow(s.skew, skewFactor));
+		const auto kurtResult = 1.f;//exp(pow(s.kurt, kurtFactor));
 
 		return returnResult*volResult*skewResult*kurtResult;
 	};
