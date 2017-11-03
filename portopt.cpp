@@ -51,6 +51,24 @@ vector<float> ReadVector(const char* path)
 	return res;
 }
 
+
+void frontierTest(const vector<vector<float>> rows, vector<Constraint> constraints)
+{
+	ReturnStats factors = ReturnStats::zero;
+	factors.meanReturn = 1;
+	auto chart = buildEfficientFrontier(constraints, rows, 12, factors);
+
+	cout.precision(5);
+
+	for (const auto& point : chart)
+	{
+		const auto& s = point.stats;
+		cout << s.stdDeviation * 100.f << ' ' << s.meanReturn * 100.f
+			// << "% skew=" << s.skew << " kurt=" << s.kurt << point.weights
+			<< endl;
+	}
+}
+
 int main()
 {
 	auto path = "someReturns.tsv";
@@ -75,13 +93,13 @@ int main()
 
 	auto targets = ReturnStats::nan;
 	//targets.totalReturn = 0.3f;
-	targets.stdDeviation = 0.06f / sqrt(12.0f);
+	//targets.stdDeviation = 0.07f / sqrt(12.0f);
 
 	auto returnsFunc = CustomRatio(
 		OptimizationParams{
 			ReturnStats{
 				1.0f, // totalReturn;
-				-1.0f, // stdDeviation;
+				-.5f, // stdDeviation;
 				0.0f, // slopeDeviation;
 				0.0f, // positiveDeviation;
 				0.0f, // negativeDeviation;
@@ -94,9 +112,9 @@ int main()
 		},
 		{});
 
-	// auto returnsFunc = ReturnsToStDevRatio;
-	// auto returnsFunc = CorrelationToBenchmark(benchmark);
-	// auto maximize = true;
+	//auto returnsFunc = ReturnsToStDevRatio;
+	//auto returnsFunc = CorrelationToBenchmark(benchmark);
+	auto maximize = true;
 
 	vector<Constraint> constraints = {
 		//Constraint(false, 0.1f, 0.8f),
@@ -110,8 +128,8 @@ int main()
 	for (auto i = constraints.size(); i < portCount; ++i)
 		constraints.push_back(Constraint(false, 0.0f, 1.0f));
 
-	/*
-	try {
+	try
+	{
 		auto weights = optimize(constraints, rows, returnsFunc, maximize, cout);
 		vector<float> returns(retCount);
 		CalcReturns(rows, weights, returns);
@@ -120,38 +138,26 @@ int main()
 		for (auto w : weights)
 			sum += w;
 		cout << "result: " << res << "\nweights: " << weights << " (sum=" << sum << ")\n";
-  
-		auto stats = GetStats(returns, {});
-  
-	  cout << "totalReturn: " << stats.totalReturn << endl;
-  cout << "stdDeviation: " << stats.stdDeviation << endl;
-  cout << "slopeDeviation: " << stats.slopeDeviation << endl;
-  cout << "positiveDeviation: " << stats.positiveDeviation << endl;
-  cout << "negativeDeviation: " << stats.negativeDeviation << endl;
-  cout << "worstDrawdown: " << stats.worstDrawdown << endl;
-  
-  cout << "annualized vol: " << stats.stdDeviation*sqrt(12.0f) << endl;
-  
+
+		ReturnStats stats;
+		GetStats(returns, {}, stats);
+
+		cout << "meanReturn: " << stats.meanReturn << endl;
+		cout << "stdDeviation: " << stats.stdDeviation << endl;
+		cout << "slopeDeviation: " << stats.slopeDeviation << endl;
+		cout << "positiveDeviation: " << stats.positiveDeviation << endl;
+		cout << "negativeDeviation: " << stats.negativeDeviation << endl;
+		cout << "worstDrawdown: " << stats.worstDrawdown << endl;
+
+		cout << "annualized vol: " << stats.stdDeviation * sqrt(12.0f) << endl;
+
 		cout << endl;
 	}
-	catch (const char* x) {
+	catch (const char* x)
+	{
 		cerr << x << endl;
 	}
-  
-	  */
 
-	ReturnStats factors;
-	factors.reset();
-	factors.meanReturn = 1;
-	auto chart = buildEfficientFrontier(constraints, rows, 12, factors);
 
-	cout.precision(5);
-
-	for (const auto& point : chart)
-	{
-		const auto& s = point.stats;
-		cout << s.stdDeviation * 100.f << ' ' << s.meanReturn * 100.f
-			// << "% skew=" << s.skew << " kurt=" << s.kurt << point.weights
-			<< endl;
-	}
+	//	frontierTest(rows, constraints);
 }

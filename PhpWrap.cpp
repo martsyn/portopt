@@ -68,6 +68,8 @@ map<string, float ReturnStats::*> targetFieldMap =
   {"posDeviation", &ReturnStats::positiveDeviation },
   {"negDeviation", &ReturnStats::negativeDeviation },
   {"drawdown", &ReturnStats::worstDrawdown },
+  {"skewness", &ReturnStats::skewness },
+  {"kurtosis", &ReturnStats::kurtosis },
 };
 
 class OptimizationConstraintPhp : public Base
@@ -138,6 +140,12 @@ Value optimizeCustomTarget(Parameters &params) {
   vector<vector<double>> returns = params[1];
   map<string, double> factorMap = params[2];
   map<string, double> targetMap;
+
+  warning << "Got factors: ";
+  for (const auto &p : factorMap) {
+	  warning << p.first << "=" << p.second << "  ";
+  }
+
   if (params.size() > 3) {
 	  targetMap = params[3];
 	  warning << "Got targets: ";
@@ -145,6 +153,8 @@ Value optimizeCustomTarget(Parameters &params) {
 		  warning << p.first << "=" << p.second << "  ";
 	  }
   }
+
+  warning.flush();
 
   auto retCount = returns[0].size();
   auto portCount = returns.size();
@@ -166,18 +176,12 @@ Value optimizeCustomTarget(Parameters &params) {
       singleReturns[i][j] = returns[j][i];
   }
 
-  ReturnStats factors, targets = ReturnStats::nan;
+  ReturnStats factors = ReturnStats::zero, targets = ReturnStats::nan;
   statsFromMap(factorMap, factors);
   statsFromMap(targetMap, targets);
 
-  //warning << "totalReturn=" << targets.totalReturn << " :: ";
-  //warning << "deviation=" << targets.deviation << " :: ";
-  //warning << "slopeDeviation=" << targets.slopeDeviation << " :: ";
-  //warning << "positiveDeviation=" << targets.positiveDeviation << " :: ";
-  //warning << "negativeDeviation=" << targets.negativeDeviation << " :: ";
-  //warning << "worstDrawdown =" << targets.worstDrawdown << " :: ";
-
-  //warning.flush();
+  warning << "factors: " << factors << flush;
+  warning << "targets: " << targets << flush;
 
   vector<std::vector<float>> benchmarks{};
 
@@ -265,8 +269,7 @@ Value buildEfficientFrontierPhp(Parameters &params) {
 			throw "count of 'series' < 2";
 		
 		size_t normalizationCount = GetVal(paramMap, "normalizationCount", 12);
-		ReturnStats factors;
-		factors.reset();
+		ReturnStats factors = ReturnStats::zero;
 		factors.meanReturn = GetVal(paramMap, "returnFactor", 1.0);
 		factors.skewness = GetVal(paramMap, "skewFactor", 0.0);
 		factors.kurtosis = GetVal(paramMap, "kurtFactor", 0.0);

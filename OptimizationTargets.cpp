@@ -4,6 +4,8 @@
 
 using namespace std;
 
+const ReturnStats ReturnStats::zero = { 0 };
+
 const ReturnStats ReturnStats::nan = {
 	nanf(""),
 	nanf(""),
@@ -14,6 +16,28 @@ const ReturnStats ReturnStats::nan = {
 	nanf(""),
 	nanf(""),
 };
+
+std::ostream& operator<<(std::ostream& os, const ReturnStats& v)
+{
+	if (!v.isSet())
+		return os << "(nan)";
+
+	os << '(';
+	
+	if (!isnan(v.meanReturn)) os << " meanReturn=" << v.meanReturn;
+	if (!isnan(v.stdDeviation)) os << " stdDeviation=" << v.stdDeviation;
+	if (!isnan(v.slopeDeviation)) os << " slopeDeviation=" << v.slopeDeviation;
+	if (!isnan(v.positiveDeviation)) os << " positiveDeviation=" << v.positiveDeviation;
+	if (!isnan(v.negativeDeviation)) os << " negativeDeviation=" << v.negativeDeviation;
+	if (!isnan(v.worstDrawdown)) os << " worstDrawdown =" << v.worstDrawdown;
+	if (!isnan(v.skewness)) os << " skewness=" << v.skewness;
+	if (!isnan(v.kurtosis)) os << " kurtosis=" << v.kurtosis;
+
+	os << ')';
+
+	return os;
+}
+
 
 float ReturnsToStDevRatio(const vector<float> &returns) {
   auto sum = Sum(returns);
@@ -121,7 +145,7 @@ void GetStats(
 	const std::vector<std::vector<float>>& benchmarks,
 	ReturnStats& s)
 {
-	s.reset();
+	s = ReturnStats::zero;
 
 	struct BenchVars
 	{

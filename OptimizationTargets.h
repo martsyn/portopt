@@ -20,7 +20,7 @@ struct ReturnStats
 	float kurtosis;
 	std::vector<float> benchmarkCorrelations;
 
-	const static ReturnStats nan;
+	const static ReturnStats nan, zero;
 
 	bool isSet() const {
 		return
@@ -34,24 +34,14 @@ struct ReturnStats
 			!std::isnan(kurtosis);
 	}
 
-	void reset()
-	{
-		meanReturn = 0;
-		stdDeviation = 0;
-		slopeDeviation = 0;
-		positiveDeviation = 0;
-		negativeDeviation = 0;
-		worstDrawdown = 0;
-		skewness = 0;
-		kurtosis = 0;
-	}
-
 	void normalize(const int normalizationCount)
 	{
 		meanReturn *= normalizationCount;
 		stdDeviation *= sqrt(static_cast<float>(normalizationCount));
 	}
 };
+
+std::ostream& operator<<(std::ostream& os, const ReturnStats& v);
 
 struct OptimizationParams
 {
