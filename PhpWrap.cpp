@@ -268,11 +268,14 @@ Value buildEfficientFrontierPhp(Parameters &params) {
 		if (portCount < 2)
 			throw "count of 'series' < 2";
 		
-		size_t normalizationCount = GetVal(paramMap, "normalizationCount", 12);
 		ReturnStats factors = ReturnStats::zero;
-		factors.meanReturn = GetVal(paramMap, "returnFactor", 1.0);
-		factors.skewness = GetVal(paramMap, "skewFactor", 0.0);
-		factors.kurtosis = GetVal(paramMap, "kurtFactor", 0.0);
+		map<string, double> factorsMap = GetVal(paramMap, "factors", map<string, double>());
+		if (factorsMap.size() > 0)
+			statsFromMap(factorsMap, factors);
+		else
+			factors.meanReturn = 1.0f;
+
+		size_t normalizationCount = GetVal(paramMap, "normalizationCount", 12);
 
 		vector<vector<float>> returns(retCount);
 		for (size_t r = 0; r < retCount; ++r) {

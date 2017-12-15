@@ -92,6 +92,7 @@
     <ClCompile Include="InitialPointProvider.cpp" />
     <ClCompile Include="OptimizationTargets.cpp" />
     <ClCompile Include="Optimize.cpp" />
+    <ClCompile Include="PhpWrap.cpp" />
     <ClCompile Include="portopt.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
