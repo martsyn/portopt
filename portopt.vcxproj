@@ -55,6 +55,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>$(USERPROFILE)\.node-gyp\10.0.0\include\node;$(USERPROFILE)\.node-gyp\10.0.0\src;$(USERPROFILE)\.node-gyp\10.0.0\deps\uv\include;$(USERPROFILE)\.node-gyp\10.0.0\deps\v8\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -70,6 +71,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>$(USERPROFILE)\.node-gyp\10.0.0\include\node;$(USERPROFILE)\.node-gyp\10.0.0\src;$(USERPROFILE)\.node-gyp\10.0.0\deps\uv\include;$(USERPROFILE)\.node-gyp\10.0.0\deps\v8\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -90,9 +92,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="InitialPointProvider.cpp" />
+    <ClCompile Include="NodeWrap.cpp" />
     <ClCompile Include="OptimizationTargets.cpp" />
     <ClCompile Include="Optimize.cpp" />
-    <ClCompile Include="PhpWrap.cpp" />
     <ClCompile Include="portopt.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

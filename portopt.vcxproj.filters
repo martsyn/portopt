@@ -59,7 +59,7 @@
     <ClCompile Include="Optimize.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="PhpWrap.cpp">
+    <ClCompile Include="NodeWrap.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
