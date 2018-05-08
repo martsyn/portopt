@@ -239,11 +239,13 @@ napi_value buildEfficientFrontierNode(napi_env env, napi_callback_info args) {
 		auto factorsNode = tryGetProp(arg, "factors");
 		if (factorsNode)
 		{
-			// // TODO: finish populating factors
-			// map<string, double> factorsMap = GetVal(paramMap, "factors", map<string, double>());
-			// if (factorsMap.size() > 0)
-			// 	statsFromMap(factorsMap, factors);
-			// else
+			factors.meanReturn = getFloat(tryGetProp(factorsNode, "return"), 0.0f);
+			factors.slopeDeviation= getFloat(tryGetProp(factorsNode, "slopeDeviation"), 0.0f);
+			factors.positiveDeviation = getFloat(tryGetProp(factorsNode, "posDeviation"), 0.0f);
+			factors.negativeDeviation = getFloat(tryGetProp(factorsNode, "negDeviation"), 0.0f);
+			factors.worstDrawdown = getFloat(tryGetProp(factorsNode, "drawdown"), 0.0f);
+			factors.skewness = getFloat(tryGetProp(factorsNode, "skewness"), 0.0f);
+			factors.kurtosis = getFloat(tryGetProp(factorsNode, "kurtosis"), 0.0f);
 		}
 		else
 		{
