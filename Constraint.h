@@ -10,11 +10,11 @@ public:
   Constraint(bool required, float min, float max) : _required(required), _min(min), _max(max)
   {
     if (_min < 0.0f)
-      throw "min < 0";
+      throw std::runtime_error("min < 0");
     if (_max < _min)
-      throw "max < min";
+      throw std::runtime_error("max < min");
     if (_max > 1.0f)
-      throw "max > 1";
+      throw std::runtime_error("max > 1");
   }
 
   bool required() const { return _required; }

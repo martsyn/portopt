@@ -63,7 +63,7 @@ float vol(const vector<float>& x)
 float Correlation(const vector<float>& a, const vector<float>& b)
 {
 	if (a.size() != b.size())
-		throw "mismatched vector sizes";
+		throw runtime_error("mismatched vector sizes");
 	float ma = Mean(a);
 	float mb = Mean(b);
 	float upSum = 0.0f;

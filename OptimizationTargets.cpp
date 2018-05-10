@@ -233,6 +233,7 @@ void GetStats(
 			benchVars[j].dotProd / sqrt(devSum * benchVars[j].devSum);
 }
 
+// s = factors, r = results
 float ScaleStats(const ReturnStats &s, const ReturnStats &r) {
 	auto stats =
 		pow(r.meanReturn, s.meanReturn) *
@@ -244,7 +245,7 @@ float ScaleStats(const ReturnStats &s, const ReturnStats &r) {
 		pow(r.skewness, s.skewness)*
 		pow(r.kurtosis, s.kurtosis);
   for (size_t i = 0; i < r.benchmarkCorrelations.size(); ++i)
-    stats *= pow(r.benchmarkCorrelations[i], s.benchmarkCorrelations[i]);
+    stats *= 1.0f + r.benchmarkCorrelations[i]*s.benchmarkCorrelations[i];
   return stats;
 }
 
@@ -319,7 +320,7 @@ CustomVolTarget(const float targetVol) {
 		}
 		auto vol = sqrt(sum2 / count);
 		
-		return mean*targetFactor(vol, targetVol, 0.005);
+		return mean*targetFactor(vol, targetVol, 0.005f);
 	};
 }
 

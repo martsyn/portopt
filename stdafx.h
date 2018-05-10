@@ -20,7 +20,9 @@
 #include <string>
 #include <sstream>
 #include <vector>
+#include <map>
 #include <functional>
 #include <algorithm>
 #include <numeric>
 #include <cassert>
+#include <cmath>

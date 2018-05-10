@@ -155,7 +155,7 @@ void growInternal(vector<float> &weights, const vector<Constraint> &constraints,
       }
     }
     if (count == 0)
-      throw "Max constraints are too low";
+      throw runtime_error("Max constraints are too low");
 
     auto done = space * count >= 1 - sum;
     auto bump = done ? (1 - sum) / count : space;
@@ -190,7 +190,7 @@ void shrinkInternal(vector<float> &weights,
       }
     }
     if (count == 0)
-      throw "Min constraints are too low";
+      throw runtime_error("Min constraints are too low");
 
     auto done = space * count >= sum - 1;
     auto bump = done ? (sum - 1) / count : space;
@@ -269,6 +269,7 @@ vector<float> optimize(const vector<Constraint> &constraints,
 vector<float> optimizeWithConstraints(
 	const vector<Constraint>& constraints,
 	const vector<vector<float>>& returns,
+	const vector<vector<float>>& benchmarks,
 	function<float(const ReturnStats&)> factor_function,
 	function<float(const ReturnStats&)> constraint_function,
 	float constraint_target, float constraint_corridor,
@@ -285,7 +286,7 @@ vector<float> optimizeWithConstraints(
 	auto wideWalkFunc = [&](const vector<float>& ws)
 	{
 		CalcReturns(returns, ws, totals);
-		GetStats(totals, {}, stats);
+		GetStats(totals, benchmarks, stats);
 		auto factor_result = factor_function(stats);
 		auto constraint_result = constraint_function(stats);
 		auto constraint_dev = (constraint_result - constraint_target) / constraint_corridor;
@@ -333,6 +334,7 @@ vector<float> optimizeWithConstraints(
 vector<EfficientFrontierPoint> buildEfficientFrontier(
 	const vector<Constraint> &constraints,
 	const vector<vector<float>> &returns,
+	const vector<vector<float>> &benchmarks,
 	const size_t normalizationCount,
 	const ReturnStats &factors)
 {
@@ -352,12 +354,12 @@ vector<EfficientFrontierPoint> buildEfficientFrontier(
 		};
 
 		const auto weights = optimizeWithConstraints(
-			constraints, returns, 
+			constraints, returns, benchmarks,
 			factorFunc, constraintFunc, stdevTarget, 0.01f, onullstream::instance());
 
 		CalcReturns(returns, weights, totals);
 		ReturnStats stats;
-		GetStats(totals, {}, stats);
+		GetStats(totals, benchmarks, stats);
 		stats.normalize(normalizationCount);
 		if (stats.stdDeviation - volTarget < -0.005f)
 			break;

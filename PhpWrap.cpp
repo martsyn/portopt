@@ -1,10 +1,6 @@
+#include "stdafx.h"
+
 #include <phpcpp.h>
-#include <string>
-#include <sstream>
-#include <map>
-#include <functional>
-#include <vector>
-#include <cmath>
 #include "Optimize.h"
 #include "OptimizationTargets.h"
 #include "Constraint.h"
@@ -101,7 +97,7 @@ public:
 			_max = static_cast<double>(params[3]);
   }
 
-  Value __toString() const
+  Php::Value __toString() const
   {
     stringstream o;
     o << "constraint(" << (_required ? "required" : "optional") << " [" << _min << ',' << _max << "])";
@@ -123,23 +119,38 @@ public:
   }
 };
 
-void statsFromMap(const map<string, double> factors, ReturnStats &stats) {
-  for (auto &fp : factors) {
-    auto mpp = targetFieldMap.find(fp.first);
-    if (mpp != targetFieldMap.end()) {
-      stats.*(mpp->second) = fp.second;
-      //      out << mpp->first << "=" << tp.second << "\n";
-    } else
-      warning << "Unknown target field " << fp.first << "=" << fp.second
-              << flush;
-  }
+void statsFromMap(const map<string, Value> factors, ReturnStats &stats, const vector<string> &benchmarkIds) {
+	stats.benchmarkCorrelations.resize(benchmarkIds.size());
+	fill(stats.benchmarkCorrelations.begin(), stats.benchmarkCorrelations.end(), 0);
+	  for (auto &fp : factors)
+	  {
+		  auto mpp = targetFieldMap.find(fp.first);
+		  if (mpp != targetFieldMap.end())
+		  {
+			  stats.*(mpp->second) = static_cast<float>(static_cast<double>(fp.second));
+			  //      out << mpp->first << "=" << tp.second << "\n";
+		  }
+		  else if (fp.first == "benchmarkCorrelations")
+		  {
+			  map<string, double> correlations = fp.second;
+			  for (auto& cp : correlations)
+			  {
+				  const auto idPtr = find(benchmarkIds.begin(), benchmarkIds.end(), cp.first);
+				  if (idPtr == benchmarkIds.end())
+					  throw runtime_error("Unexpected benchmark in 'benchmarkCorrelations'");
+				  stats.benchmarkCorrelations[idPtr - benchmarkIds.begin()] = static_cast<float>(cp.second);
+			  }
+		  }
+		  else
+			  warning << "Unknown target field " << fp.first << "=" << fp.second << flush;
+	  }
 }
 
 Value optimizeCustomTarget(Parameters &params) {
   vector<Object> constraintsPhp = params[0];
   vector<vector<double>> returns = params[1];
-  map<string, double> factorMap = params[2];
-  map<string, double> targetMap;
+  map<string, Value> factorMap = params[2];
+  map<string, Value> targetMap;
 
   warning << "Got factors: ";
   for (const auto &p : factorMap) {
@@ -160,7 +171,7 @@ Value optimizeCustomTarget(Parameters &params) {
   auto portCount = returns.size();
 
   if (constraintsPhp.size() != portCount)
-	  throw "Mismatching returns and constraints count";
+	  throw runtime_error("Mismatching returns and constraints count");
 
   vector<Constraint> constraints;//(returns.size(), Constraint(false, 0, 1));
   constraints.reserve(constraintsPhp.size());
@@ -177,8 +188,8 @@ Value optimizeCustomTarget(Parameters &params) {
   }
 
   ReturnStats factors = ReturnStats::zero, targets = ReturnStats::nan;
-  statsFromMap(factorMap, factors);
-  statsFromMap(targetMap, targets);
+  statsFromMap(factorMap, factors, {});
+  statsFromMap(targetMap, targets, {});
 
   warning << "factors: " << factors << flush;
   warning << "targets: " << targets << flush;
@@ -212,9 +223,10 @@ Value optimizeCustomTarget(Parameters &params) {
 	warning.flush();
 
 	return (vector<float>)weights;
-  } catch (const char *x) {
-    warning << x << std::flush;
-    throw Exception(x);
+  } catch (const exception &x) {
+	  const auto msg = x.what();
+    warning << msg << std::flush;
+    throw Exception(msg);
   }
 }
 
@@ -234,7 +246,7 @@ Value buildEfficientFrontierPhp(Parameters &params) {
 
 		auto i = paramMap.find("series");
 		if (i == paramMap.end())
-			throw "'series' is missing";
+			throw runtime_error("'series' is missing");
 
 		map<string, map<string, Value>> series = i->second;
 		vector<string> ids;
@@ -247,15 +259,15 @@ Value buildEfficientFrontierPhp(Parameters &params) {
 			ids.push_back(id);
 			auto k = j->second.find("returns");
 			if (k == j->second.end())
-				throw (string("missing 'returns' from ") + id).c_str();
+				throw runtime_error((string("missing 'returns' from ") + id).c_str());
 			vector<double> returnsDouble = k->second;
 			if (!retCount) {
 				retCount = returnsDouble.size();
 				if (retCount < 2)
-					throw "count of 'returns' < 2";
+					throw runtime_error("count of 'returns' < 2");
 			}
 			else if (retCount != returnsDouble.size())
-				throw "mismatching size of 'returns'";
+				throw runtime_error("mismatching size of 'returns'");
 			singleReturns.push_back(vector<float>(returnsDouble.begin(), returnsDouble.end()));
 			
 			bool required = GetVal(j->second, "required", true);
@@ -266,12 +278,30 @@ Value buildEfficientFrontierPhp(Parameters &params) {
 		const auto portCount = singleReturns.size();
 		
 		if (portCount < 2)
-			throw "count of 'series' < 2";
+			throw runtime_error("count of 'series' < 2");
+
+		vector<string> benchmarkIds;
+		vector<vector<float>> benchmarkReturns;
+
+		i = paramMap.find("benchmarks");
+		if (i != paramMap.end())
+		{
+			map<string, map<string, Value>> benchmarkSeries = i->second;
+			for (auto j = benchmarkSeries.begin(); j != benchmarkSeries.end(); ++j) {
+				string id = j->first;
+				benchmarkIds.push_back(id);
+				auto k = j->second.find("returns");
+				if (k == j->second.end())
+					throw runtime_error((string("missing 'returns' from benchmark ") + id).c_str());
+				vector<double> returnsDouble = k->second;
+				benchmarkReturns.push_back(vector<float>(returnsDouble.begin(), returnsDouble.end()));
+			}
+		}
 		
 		ReturnStats factors = ReturnStats::zero;
-		map<string, double> factorsMap = GetVal(paramMap, "factors", map<string, double>());
-		if (factorsMap.size() > 0)
-			statsFromMap(factorsMap, factors);
+		map<string, Value> factorsMap = GetVal(paramMap, "factors", map<string, Value>());
+		if (!factorsMap.empty())
+			statsFromMap(factorsMap, factors, benchmarkIds);
 		else
 			factors.meanReturn = 1.0f;
 
@@ -284,7 +314,7 @@ Value buildEfficientFrontierPhp(Parameters &params) {
 				returns[r][p] = singleReturns[p][r];
 		}
 
-		auto points = buildEfficientFrontier(constraints, returns, normalizationCount, factors);
+		auto points = buildEfficientFrontier(constraints, returns, benchmarkReturns, normalizationCount, factors);
 
 		vector<map<string, Value>> result;
 		for (const auto point : points) {
@@ -298,17 +328,22 @@ Value buildEfficientFrontierPhp(Parameters &params) {
 			phpPoint["skewness"] = point.stats.skewness;
 			phpPoint["kurtosis"] = point.stats.kurtosis;
 			map<string, double> weights;
-			for (size_t i = 0; i < point.weights.size(); ++i)
-				weights[ids[i]] = point.weights[i];
+			for (size_t j = 0; j < point.weights.size(); ++j)
+				weights[ids[j]] = point.weights[j];
 			phpPoint["weights"] = weights;
+			map<string, double> benchmarkCorrelations;
+			for (size_t j = 0; j < benchmarkIds.size(); ++j)
+				benchmarkCorrelations[benchmarkIds[j]] = point.stats.benchmarkCorrelations[j];
+			phpPoint["benchmarkCorrelations"] = benchmarkCorrelations;
 			result.push_back(phpPoint);
 		}
 
 		return result;
 	}
-	catch (const char *x) {
-		warning << x << std::flush;
-		throw Exception(x);
+	catch (const exception &x) {
+		auto msg = x.what();
+		warning << msg << std::flush;
+		throw Exception(msg);
 	}
 }
 

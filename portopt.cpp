@@ -10,6 +10,7 @@
 
 using namespace std;
 
+// columns are instruments, rows are dates
 vector<vector<float>> ReadMatrix(const char* path)
 {
 	vector<vector<float>> rows;
@@ -32,7 +33,7 @@ vector<vector<float>> ReadMatrix(const char* path)
 		if (first)
 			portCount = vals.size();
 		else if (vals.size() != portCount)
-			throw "Mismatching column count";
+			throw runtime_error("Mismatching column count");
 
 		rows.push_back(vals);
 	}
@@ -52,11 +53,14 @@ vector<float> ReadVector(const char* path)
 }
 
 
-void frontierTest(const vector<vector<float>> rows, vector<Constraint> constraints)
+void frontierTest(const vector<vector<float>> rows, vector<float> benchmark)
 {
+	const vector<Constraint> constraints(rows[0].size(), Constraint(true, 0.f, 1.f));
+
 	ReturnStats factors = ReturnStats::zero;
-	factors.meanReturn = 1;
-	auto chart = buildEfficientFrontier(constraints, rows, 12, factors);
+	factors.meanReturn = 0.f;
+	factors.benchmarkCorrelations = { 1.f };
+	auto chart = buildEfficientFrontier(constraints, rows, { benchmark }, 12, factors);
 
 	cout.precision(5);
 
@@ -64,6 +68,7 @@ void frontierTest(const vector<vector<float>> rows, vector<Constraint> constrain
 	{
 		const auto& s = point.stats;
 		cout << s.stdDeviation * 100.f << ' ' << s.meanReturn * 100.f
+			<< ' ' << s.benchmarkCorrelations[0]
 			// << "% skew=" << s.skew << " kurt=" << s.kurt << point.weights
 			<< endl;
 	}
@@ -71,26 +76,26 @@ void frontierTest(const vector<vector<float>> rows, vector<Constraint> constrain
 
 int main()
 {
-	auto path = "someReturns.tsv";
+	auto path = R"(\\hptblsrv03\Common\IT\HfinOne\samplePortfolio\dowComponents.tsv)";
 	cout << "reading " << path << "\n";
 	const auto rows = ReadMatrix(path);
 	size_t portCount = rows[0].size();
 	size_t retCount = rows.size();
 	cout << "read " << portCount << " portfolios with " << retCount
 		<< " points each\n";
-	/*
-	  const auto benchmarkPath = "c:\\projects\\dumps\\spx.tsv";
-	  cout << "reading " << benchmarkPath << "\n";
-	  auto benchmark = ReadVector(benchmarkPath);
-	  cout << "read " << benchmark.size() << "\n";
-	
-	  if (benchmark.size() != retCount) {
-	    cerr << "mismatching counts\n";
-	    exit(1);
-	  }
-	
-	*/
 
+	const auto benchmarkPath = R"(\\hptblsrv03\Common\IT\HfinOne\samplePortfolio\sds.tsv)";
+	cout << "reading " << benchmarkPath << "\n";
+	auto benchmark = ReadVector(benchmarkPath);
+	cout << "read " << benchmark.size() << "\n";
+
+	if (benchmark.size() != retCount) {
+	cerr << "mismatching counts\n";
+	exit(1);
+	}
+
+	/*
+	
 	auto targets = ReturnStats::nan;
 	//targets.totalReturn = 0.3f;
 	//targets.stdDeviation = 0.07f / sqrt(12.0f);
@@ -157,7 +162,7 @@ int main()
 	{
 		cerr << x << endl;
 	}
+	*/
 
-
-	//	frontierTest(rows, constraints);
+	frontierTest(rows, benchmark);
 }
