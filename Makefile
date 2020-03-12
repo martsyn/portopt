@@ -29,7 +29,7 @@ NAME				=	portopt
 #	one for each extension. Use this variable to specify this directory.
 #
 
-INI_DIR				=	/etc/php.d
+INI_DIR				=	$(shell php-config --ini-dir)
 
 
 #
